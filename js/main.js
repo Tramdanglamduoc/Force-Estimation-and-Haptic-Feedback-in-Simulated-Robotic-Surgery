@@ -46,23 +46,27 @@ export function initPhysicsTab() {
   const cSlider = document.getElementById("cSlider");
   const xSlider = document.getElementById("xSlider");
   const vSlider = document.getElementById("vSlider");
+  const holdSlider = document.getElementById("holdSlider");
   const kVal = document.getElementById("kVal");
   const cVal = document.getElementById("cVal");
   const xVal = document.getElementById("xVal");
   const vVal = document.getElementById("vVal");
+  const holdVal = document.getElementById("holdVal");
 
-  if (!kSlider || !cSlider || !xSlider || !vSlider) return;
+  if (!kSlider || !cSlider || !xSlider || !vSlider || !holdSlider) return;
 
   function update() {
     const k = parseFloat(kSlider.value);
     const c = parseFloat(cSlider.value);
     const x = parseFloat(xSlider.value);
     const v = parseFloat(vSlider.value);
+    const holdDuration = parseFloat(holdSlider.value);
     
     kVal.textContent = k;
     cVal.textContent = c;
     xVal.textContent = x.toFixed(1);
     vVal.textContent = v.toFixed(1);
+    holdVal.textContent = holdDuration.toFixed(1);
 
     // Unit conversions (mm -> m and mm/s -> m/s)
     const x_m = mmToM(x);
@@ -145,15 +149,22 @@ export function initPhysicsTab() {
       `;
     }
 
+    // Live rampT calculations and formula note readout update
+    const rampT = Math.min(1.2, Math.max(0.1, x / v));
+    const rampTFormula = document.getElementById("rampTFormula");
+    if (rampTFormula) {
+      rampTFormula.textContent = `rampT = x / ẋ = ${x.toFixed(1)} mm / ${v.toFixed(1)} mm/s ≈ ${rampT.toFixed(2)} s`;
+    }
+
     // Console verification
     console.log("fElastic:", fElastic.toFixed(4), "N, fViscous:", fViscous.toFixed(4), "N, total:", total.toFixed(4), "N");
 
     // Draw plots
     drawDepthPlot(k, x);
-    drawTimePlot(k, c, x);
+    drawTimePlot(k, c, x, v, holdDuration);
   }
 
-  [kSlider, cSlider, xSlider, vSlider].forEach(s => s.addEventListener("input", update));
+  [kSlider, cSlider, xSlider, vSlider, holdSlider].forEach(s => s.addEventListener("input", update));
   update();
   updateMonteCarloVisibility();
 }

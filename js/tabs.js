@@ -82,6 +82,10 @@ function physicsTabHTML() {
           <div class="label-row"><span>Instantaneous velocity ẋ (mm/s)</span><span class="val" id="vVal">5</span></div>
           <input type="range" id="vSlider" min="0.1" max="50" step="0.1" value="5">
         </div>
+        <div class="slider-row">
+          <div class="label-row"><span>Hold duration (s)</span><span class="val" id="holdVal">1.0</span></div>
+          <input type="range" id="holdSlider" min="0.2" max="3" step="0.1" value="1.0">
+        </div>
       </div>
 
       <div>
@@ -95,6 +99,7 @@ function physicsTabHTML() {
             <h3>Force vs. time</h3>
             <p class="sub">One indent–hold–release cycle</p>
             <canvas id="plotTime" width="400" height="180"></canvas>
+            <p class="note" id="rampTFormula" style="margin-top: 10px;"></p>
           </div>
         </div>
 

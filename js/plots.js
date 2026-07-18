@@ -163,7 +163,7 @@ export function drawDepthPlot(k, xCurrent) {
  * Draw Force vs Time plot
  * Shows one indent-hold-release cycle
  */
-export function drawTimePlot(k, c, xTarget) {
+export function drawTimePlot(k, c, xTarget, vTarget, holdDuration) {
   const canvas = document.getElementById("plotTime");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -173,8 +173,10 @@ export function drawTimePlot(k, c, xTarget) {
   
   ctx.clearRect(0, 0, W, H);
   
-  // triangular indent-hold-release profile over t in [0,3]
-  const T = 3, rampT = 0.8;
+  // Calculate dynamic rampT and total time T based on inputs
+  const rampT = Math.min(1.2, Math.max(0.1, xTarget / vTarget));
+  const T = 2 * rampT + holdDuration;
+  
   function xOfT(t) {
     if (t < rampT) return xTarget * (t / rampT);
     if (t < T - rampT) return xTarget;
