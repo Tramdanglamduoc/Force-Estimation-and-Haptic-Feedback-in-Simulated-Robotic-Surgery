@@ -6,7 +6,7 @@ import {
   calculateTotalForce,
   calculateUncertainty
 } from './physics.js';
-import { drawDepthPlot, drawTimePlot } from './plots.js';
+import { drawDepthPlot, drawTimePlot, calculateRampT, calculateEffectiveVelocity } from './plots.js';
 
 /**
  * Update the visibility of the parameter uncertainty panel based on the Monte Carlo toggle state
@@ -68,9 +68,10 @@ export function initPhysicsTab() {
     vVal.textContent = v.toFixed(1);
     holdVal.textContent = holdDuration.toFixed(1);
 
-    // Unit conversions (mm -> m and mm/s -> m/s)
+    // Unit conversions (mm -> m and mm/s -> m/s) using effective velocity for time-scale parity
     const x_m = mmToM(x);
-    const v_m = mmToM(v);
+    const v_effective = calculateEffectiveVelocity(x, v);
+    const v_effective_m = mmToM(v_effective);
 
     // Uncertainty (illustrative bootstrap CI width from physics.js)
     const { ciKWidth, ciCWidth } = calculateUncertainty(k, c);
@@ -108,9 +109,9 @@ export function initPhysicsTab() {
       ciCEl.style.width = ciCWidthPct + "%";
     }
 
-    // Decomposition
+    // Decomposition (using effective velocity for consistent viscous force attribution)
     const fElastic = calculateElasticForce(k, x_m);
-    const fViscous = calculateViscousForce(c, v_m);
+    const fViscous = calculateViscousForce(c, v_effective_m);
     const total = calculateTotalForce(fElastic, fViscous);
     
     let pElastic = 50;
@@ -141,16 +142,17 @@ export function initPhysicsTab() {
           <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
           <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
           <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
-            F = (${k} N/m &middot; ${x_m.toFixed(4)} m) + (${c} Ns/m &middot; ${v_m.toFixed(4)} m/s)<br>
+            F = (${k} N/m &middot; ${x_m.toFixed(4)} m) + (${c} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
+          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: ẋ was adjusted from ${v.toFixed(1)} mm/s to ${v_effective.toFixed(1)} mm/s to fit the animation timing.</div>` : ''}
         </div>
       `;
     }
 
     // Live rampT calculations and formula note readout update
-    const rampT = Math.min(1.2, Math.max(0.1, x / v));
+    const rampT = calculateRampT(x, v);
     const rampTFormula = document.getElementById("rampTFormula");
     if (rampTFormula) {
       rampTFormula.textContent = `rampT = x / ẋ = ${x.toFixed(1)} mm / ${v.toFixed(1)} mm/s ≈ ${rampT.toFixed(2)} s`;

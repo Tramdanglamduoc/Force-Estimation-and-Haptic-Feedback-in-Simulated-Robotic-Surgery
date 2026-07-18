@@ -6,6 +6,15 @@ const PAD_Y = 40;
 const RIGHT_MARGIN = 15;
 const TOP_MARGIN = 22;
 
+export function calculateRampT(xTarget, vTarget) {
+  return Math.min(1.2, Math.max(0.1, xTarget / vTarget));
+}
+
+export function calculateEffectiveVelocity(xTarget, vTarget) {
+  const rampT = calculateRampT(xTarget, vTarget);
+  return xTarget / rampT;
+}
+
 /**
  * Draw axes lines (X and Y)
  */
@@ -183,7 +192,7 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration) {
   ctx.clearRect(0, 0, W, H);
   
   // Calculate dynamic rampT and total time T based on inputs
-  const rampT = Math.min(1.2, Math.max(0.1, xTarget / vTarget));
+  const rampT = calculateRampT(xTarget, vTarget);
   const T = 2 * rampT + holdDuration;
   
   function xOfT(t) {
