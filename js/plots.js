@@ -1,10 +1,10 @@
 import { mmToM } from './physics.js';
 
 // Layout geometry constants
-const PAD_X = 40;
-const PAD_Y = 30;
+const PAD_X = 55;
+const PAD_Y = 40;
 const RIGHT_MARGIN = 15;
-const TOP_MARGIN = 15;
+const TOP_MARGIN = 22;
 
 /**
  * Draw axes lines (X and Y)
@@ -26,13 +26,22 @@ function drawAxes(ctx, W, H) {
 function drawAxisTitles(ctx, W, H, xTitle, yTitle) {
   ctx.fillStyle = "#5C6B73";
   ctx.font = "9px sans-serif";
-  ctx.textAlign = "right";
-  ctx.textBaseline = "bottom";
-  ctx.fillText(xTitle, W - RIGHT_MARGIN, H - PAD_Y - 6);
   
-  ctx.textAlign = "left";
+  const plotW = W - PAD_X - RIGHT_MARGIN;
+  
+  // Y-axis title (rotated 90 degrees counter-clockwise along left edge)
+  ctx.save();
+  ctx.translate(12, (H - PAD_Y + TOP_MARGIN) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(yTitle, 0, 0);
+  ctx.restore();
+  
+  // X-axis title (centered horizontally in bottom margin)
+  ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillText(yTitle, PAD_X + 6, TOP_MARGIN + 2);
+  ctx.fillText(xTitle, PAD_X + plotW / 2, H - PAD_Y + 18);
 }
 
 /**
