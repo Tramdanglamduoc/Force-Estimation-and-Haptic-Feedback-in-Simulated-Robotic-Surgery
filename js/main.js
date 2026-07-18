@@ -47,13 +47,18 @@ export function initPhysicsTab() {
   const xSlider = document.getElementById("xSlider");
   const vSlider = document.getElementById("vSlider");
   const holdSlider = document.getElementById("holdSlider");
+  const rampMinSlider = document.getElementById("rampMinSlider");
+  const rampMaxSlider = document.getElementById("rampMaxSlider");
+  
   const kVal = document.getElementById("kVal");
   const cVal = document.getElementById("cVal");
   const xVal = document.getElementById("xVal");
   const vVal = document.getElementById("vVal");
   const holdVal = document.getElementById("holdVal");
+  const rampMinVal = document.getElementById("rampMinVal");
+  const rampMaxVal = document.getElementById("rampMaxVal");
 
-  if (!kSlider || !cSlider || !xSlider || !vSlider || !holdSlider) return;
+  if (!kSlider || !cSlider || !xSlider || !vSlider || !holdSlider || !rampMinSlider || !rampMaxSlider) return;
 
   function update() {
     const k = parseFloat(kSlider.value);
@@ -61,17 +66,27 @@ export function initPhysicsTab() {
     const x = parseFloat(xSlider.value);
     const v = parseFloat(vSlider.value);
     const holdDuration = parseFloat(holdSlider.value);
+    const rampMin = parseFloat(rampMinSlider.value);
+    const rampMax = parseFloat(rampMaxSlider.value);
     
     kVal.textContent = k;
     cVal.textContent = c;
     xVal.textContent = x.toFixed(1);
-    vVal.textContent = v.toFixed(1);
     holdVal.textContent = holdDuration.toFixed(1);
+    rampMinVal.textContent = rampMin.toFixed(2);
+    rampMaxVal.textContent = rampMax.toFixed(1);
 
-    // Unit conversions (mm -> m and mm/s -> m/s) using effective velocity for time-scale parity
+    // Unit conversions using effective velocity based on dynamic clamp boundaries
     const x_m = mmToM(x);
-    const v_effective = calculateEffectiveVelocity(x, v);
+    const v_effective = calculateEffectiveVelocity(x, v, rampMin, rampMax);
     const v_effective_m = mmToM(v_effective);
+
+    // Update velocity slider value display to show effective velocity if clamping occurred
+    if (Math.abs(v_effective - v) <= 0.01) {
+      vVal.textContent = v.toFixed(1);
+    } else {
+      vVal.innerHTML = `${v.toFixed(1)} &rarr; <span style="color:#B06A18; font-weight:700;">${v_effective.toFixed(1)} (adjusted)</span>`;
+    }
 
     // Uncertainty (illustrative bootstrap CI width from physics.js)
     const { ciKWidth, ciCWidth } = calculateUncertainty(k, c);
@@ -146,16 +161,16 @@ export function initPhysicsTab() {
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
-          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: ẋ was adjusted from ${v.toFixed(1)} mm/s to ${v_effective.toFixed(1)} mm/s to fit the animation timing.</div>` : ''}
+          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
         </div>
       `;
     }
 
-    // Live rampT calculations and formula note readout update
-    const rampT = calculateRampT(x, v);
+    // Live rampT calculations and formula note readout update (incorporating clamp bounds)
+    const rampT = calculateRampT(x, v, rampMin, rampMax);
     const rampTFormula = document.getElementById("rampTFormula");
     if (rampTFormula) {
-      rampTFormula.textContent = `rampT = x / ẋ = ${x.toFixed(1)} mm / ${v.toFixed(1)} mm/s ≈ ${rampT.toFixed(2)} s`;
+      rampTFormula.textContent = `rampT = clamp(x/ẋ, ${rampMin.toFixed(2)}s, ${rampMax.toFixed(1)}s) = clamp(${x.toFixed(1)}/${v.toFixed(1)}, ${rampMin.toFixed(2)}s, ${rampMax.toFixed(1)}s) ≈ ${rampT.toFixed(2)} s`;
     }
 
     const T = 2 * rampT + holdDuration;
@@ -169,10 +184,10 @@ export function initPhysicsTab() {
 
     // Draw plots
     drawDepthPlot(k, x);
-    drawTimePlot(k, c, x, v, holdDuration);
+    drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax);
   }
 
-  [kSlider, cSlider, xSlider, vSlider, holdSlider].forEach(s => s.addEventListener("input", update));
+  [kSlider, cSlider, xSlider, vSlider, holdSlider, rampMinSlider, rampMaxSlider].forEach(s => s.addEventListener("input", update));
   update();
   updateMonteCarloVisibility();
 }

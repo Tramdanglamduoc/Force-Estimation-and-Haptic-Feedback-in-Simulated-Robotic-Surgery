@@ -86,6 +86,15 @@ function physicsTabHTML() {
           <div class="label-row"><span>Hold duration (s)</span><span class="val" id="holdVal">1.0</span></div>
           <input type="range" id="holdSlider" min="0.2" max="3" step="0.1" value="1.0">
         </div>
+        <div class="slider-row">
+          <div class="label-row"><span>Min ramp time (s)</span><span class="val" id="rampMinVal">0.10</span></div>
+          <input type="range" id="rampMinSlider" min="0.02" max="1" step="0.01" value="0.1">
+        </div>
+        <div class="slider-row">
+          <div class="label-row"><span>Max ramp time (s)</span><span class="val" id="rampMaxVal">1.2</span></div>
+          <input type="range" id="rampMaxSlider" min="1" max="10" step="0.1" value="1.2">
+        </div>
+        <p class="note" style="margin-top: 10px;">These bounds keep the animation readable; they are a visualization choice, not a physically derived limit.</p>
       </div>
 
       <div>

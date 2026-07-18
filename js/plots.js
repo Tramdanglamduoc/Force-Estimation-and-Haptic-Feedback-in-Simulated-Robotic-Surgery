@@ -6,12 +6,12 @@ const PAD_Y = 40;
 const RIGHT_MARGIN = 15;
 const TOP_MARGIN = 22;
 
-export function calculateRampT(xTarget, vTarget) {
-  return Math.min(1.2, Math.max(0.1, xTarget / vTarget));
+export function calculateRampT(xTarget, vTarget, rampMin, rampMax) {
+  return Math.min(rampMax, Math.max(rampMin, xTarget / vTarget));
 }
 
-export function calculateEffectiveVelocity(xTarget, vTarget) {
-  const rampT = calculateRampT(xTarget, vTarget);
+export function calculateEffectiveVelocity(xTarget, vTarget, rampMin, rampMax) {
+  const rampT = calculateRampT(xTarget, vTarget, rampMin, rampMax);
   return xTarget / rampT;
 }
 
@@ -181,7 +181,7 @@ export function drawDepthPlot(k, xCurrent) {
  * Draw Force vs Time plot
  * Shows one indent-hold-release cycle
  */
-export function drawTimePlot(k, c, xTarget, vTarget, holdDuration) {
+export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax) {
   const canvas = document.getElementById("plotTime");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -191,8 +191,8 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration) {
   
   ctx.clearRect(0, 0, W, H);
   
-  // Calculate dynamic rampT and total time T based on inputs
-  const rampT = calculateRampT(xTarget, vTarget);
+  // Calculate dynamic rampT and total time T based on inputs and configurable bounds
+  const rampT = calculateRampT(xTarget, vTarget, rampMin, rampMax);
   const T = 2 * rampT + holdDuration;
   
   function xOfT(t) {
