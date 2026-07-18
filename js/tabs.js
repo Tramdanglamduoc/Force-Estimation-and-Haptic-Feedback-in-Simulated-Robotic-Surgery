@@ -100,6 +100,7 @@ function physicsTabHTML() {
             <p class="sub">One indent–hold–release cycle</p>
             <canvas id="plotTime" width="400" height="180"></canvas>
             <p class="note" id="rampTFormula" style="margin-top: 10px;"></p>
+            <p class="note" id="totalTFormula" style="margin-top: 4px;"></p>
           </div>
         </div>
 

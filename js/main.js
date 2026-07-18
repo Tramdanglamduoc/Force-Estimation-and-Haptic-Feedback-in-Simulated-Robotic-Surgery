@@ -156,6 +156,12 @@ export function initPhysicsTab() {
       rampTFormula.textContent = `rampT = x / ẋ = ${x.toFixed(1)} mm / ${v.toFixed(1)} mm/s ≈ ${rampT.toFixed(2)} s`;
     }
 
+    const T = 2 * rampT + holdDuration;
+    const totalTFormula = document.getElementById("totalTFormula");
+    if (totalTFormula) {
+      totalTFormula.textContent = `T = 2 × rampT + holdDuration = 2 × ${rampT.toFixed(2)} s + ${holdDuration.toFixed(1)} s ≈ ${T.toFixed(2)} s`;
+    }
+
     // Console verification
     console.log("fElastic:", fElastic.toFixed(4), "N, fViscous:", fViscous.toFixed(4), "N, total:", total.toFixed(4), "N");
 
