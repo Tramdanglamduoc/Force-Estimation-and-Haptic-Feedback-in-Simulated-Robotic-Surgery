@@ -65,7 +65,9 @@ function physicsTabHTML() {
       <div class="card">
         <span class="badge">Current stage</span>
         <h3>Physics model controls</h3>
-        <p class="sub">Kelvin-Voigt core: F = k&middot;x + c&middot;ẋ</p>
+        <p class="sub" style="margin-bottom: 20px;">Kelvin-Voigt core: F = k&middot;x + c&middot;ẋ</p>
+        
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;">Core model parameters</div>
         <div class="slider-row">
           <div class="label-row"><span>Stiffness k (N/m)</span><span class="val" id="kVal">200</span></div>
           <input type="range" id="kSlider" min="10" max="500" value="200">
@@ -78,6 +80,10 @@ function physicsTabHTML() {
           <div class="label-row"><span>Indentation depth x (mm)</span><span class="val" id="xVal">5</span></div>
           <input type="range" id="xSlider" min="0" max="10" step="0.1" value="5">
         </div>
+        
+        <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+        
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;">Time animation parameters</div>
         <div class="slider-row">
           <div class="label-row"><span>Instantaneous velocity ẋ (mm/s)</span><span class="val" id="vVal">5</span></div>
           <input type="range" id="vSlider" min="0.1" max="50" step="0.1" value="5">
@@ -101,12 +107,14 @@ function physicsTabHTML() {
         <div class="plots-row">
           <div class="card">
             <h3>Force vs. depth</h3>
-            <p class="sub">Elastic response across indentation range</p>
+            <p class="sub" style="margin-bottom: 8px;">Elastic response across indentation range</p>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, x</span>
             <canvas id="plotDepth" width="400" height="180"></canvas>
           </div>
           <div class="card">
             <h3>Force vs. time</h3>
-            <p class="sub">One indent–hold–release cycle</p>
+            <p class="sub" style="margin-bottom: 8px;">One indent–hold–release cycle</p>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, c, x, ẋ, hold, ramp bounds</span>
             <canvas id="plotTime" width="400" height="180"></canvas>
             <p class="note" id="rampTFormula" style="margin-top: 10px;"></p>
             <p class="note" id="totalTFormula" style="margin-top: 4px;"></p>
@@ -116,7 +124,8 @@ function physicsTabHTML() {
         <div class="panels-row">
           <div class="card" id="uncertaintyPanel">
             <h3>Parameter uncertainty</h3>
-            <p class="sub">k, c confidence interval (bootstrap / least-squares)</p>
+            <p class="sub" style="margin-bottom: 8px;">k, c confidence interval (bootstrap / least-squares)</p>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, c</span>
             <div class="ci-row">
               <div class="name">k</div>
               <div class="ci-bar"><div class="fill" id="ciK"></div></div>
@@ -132,7 +141,8 @@ function physicsTabHTML() {
 
           <div class="card">
             <h3>Force decomposition</h3>
-            <p class="sub">Elastic vs. viscous contribution</p>
+            <p class="sub" style="margin-bottom: 8px;">Elastic vs. viscous contribution</p>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, c, x, ẋ</span>
             <div class="stack-bar">
               <div class="elastic" id="elasticBar" style="width:60%"></div>
               <div class="viscous" id="viscousBar" style="width:40%"></div>
