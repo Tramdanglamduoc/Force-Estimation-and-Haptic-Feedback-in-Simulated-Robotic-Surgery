@@ -420,7 +420,7 @@ function physicsTabHTML(){
       <div class="card">
         <span class="badge">Current stage</span>
         <h3>Physics model controls</h3>
-        <p class="sub">Kelvin-Voigt core: F = k·x + c·ẋ</p>
+        <p class="sub">Kelvin-Voigt core: F = k&middot;x + c&middot;ẋ &nbsp;&nbsp;(F in N, k in N/m, x in m, c in Ns/m, ẋ in m/s)</p>
         <div class="slider-row">
           <div class="label-row"><span>Stiffness k (N/m)</span><span class="val" id="kVal">200</span></div>
           <input type="range" id="kSlider" min="10" max="500" value="200">
@@ -472,7 +472,7 @@ function physicsTabHTML(){
 
           <div class="card">
             <h3>Force decomposition</h3>
-            <p class="sub">Elastic vs. viscous contribution, F = k·x + c·ẋ</p>
+            <p class="sub">Elastic vs. viscous contribution, F = k&middot;x + c&middot;ẋ &nbsp;&nbsp;(F in N, k in N/m, x in m, c in Ns/m, ẋ in m/s)</p>
             <div class="stack-bar">
               <div class="elastic" id="elasticBar" style="width:60%"></div>
               <div class="viscous" id="viscousBar" style="width:40%"></div>
@@ -481,6 +481,11 @@ function physicsTabHTML(){
               <span><span class="dot elastic-dot"></span>Elastic — <span id="elasticPct">60%</span></span>
               <span><span class="dot viscous-dot"></span>Viscous — <span id="viscousPct">40%</span></span>
             </div>
+            
+            <div id="totalForceDisplay" style="margin-top: 14px; font-size: 13px; font-weight: 600; color: var(--navy);">Total force F = 0.000 N</div>
+            <div id="elasticFormula" style="margin-top: 6px; font-size: 11px; color: var(--text-muted); font-family: monospace; white-space: nowrap;"></div>
+            <div id="viscousFormula" style="margin-top: 4px; font-size: 11px; color: var(--text-muted); font-family: monospace; white-space: nowrap;"></div>
+            
             <p class="note">Recomputes live as you move the sliders above.</p>
           </div>
         </div>
@@ -516,6 +521,46 @@ window.toggleMonteCarlo = toggleMonteCarlo;
 // wait for physics panel to be in DOM before wiring
 requestAnimationFrame(initPhysicsTab);
 
+function drawTooltip(ctx, text, x, y, canvasW, canvasH) {
+  ctx.font = "11px sans-serif";
+  const textWidth = ctx.measureText(text).width;
+  const padX = 8, padY = 6;
+  const boxW = textWidth + padX * 2;
+  const boxH = 15 + padY * 2;
+  
+  let boxX = x + 10;
+  let boxY = y - boxH - 10;
+  if (boxX + boxW > canvasW - 5) {
+    boxX = x - boxW - 10;
+  }
+  if (boxY < 5) {
+    boxY = y + 10;
+  }
+  
+  ctx.fillStyle = "rgba(15, 30, 46, 0.95)";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.15)";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
+  
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+  } else {
+    ctx.rect(boxX, boxY, boxW, boxH);
+  }
+  ctx.fill();
+  
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, boxX + padX, boxY + padY + 7.5);
+}
+
 function initPhysicsTab(){
   const kSlider = document.getElementById("kSlider");
   const cSlider = document.getElementById("cSlider");
@@ -525,6 +570,42 @@ function initPhysicsTab(){
   const cVal = document.getElementById("cVal");
   const xVal = document.getElementById("xVal");
   const vVal = document.getElementById("vVal");
+
+  const canvasDepth = document.getElementById("plotDepth");
+  const canvasTime = document.getElementById("plotTime");
+
+  let depthHoverX = null;
+  let timeHoverX = null;
+
+  canvasDepth.addEventListener("mousemove", (e) => {
+    const rect = canvasDepth.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x >= 55 && x <= canvasDepth.width - 15) {
+      depthHoverX = x;
+    } else {
+      depthHoverX = null;
+    }
+    update();
+  });
+  canvasDepth.addEventListener("mouseleave", () => {
+    depthHoverX = null;
+    update();
+  });
+
+  canvasTime.addEventListener("mousemove", (e) => {
+    const rect = canvasTime.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x >= 55 && x <= canvasTime.width - 15) {
+      timeHoverX = x;
+    } else {
+      timeHoverX = null;
+    }
+    update();
+  });
+  canvasTime.addEventListener("mouseleave", () => {
+    timeHoverX = null;
+    update();
+  });
 
   function update(){
     const k = parseFloat(kSlider.value);
@@ -547,13 +628,13 @@ function initPhysicsTab(){
     document.getElementById("ciCLabel").textContent = `${c} ± ${ciCWidth.toFixed(1)} Ns/m`;
 
     // Map CI to slider ranges to calculate actual relative position
-    const kMin = 10, kMax = 500, kRange = kMax - kMin;
+    const kMin = parseFloat(kSlider.min), kMax = parseFloat(kSlider.max), kRange = kMax - kMin;
     const ciKStart = Math.max(kMin, k - ciKWidth);
     const ciKEnd = Math.min(kMax, k + ciKWidth);
     const ciKLeft = ((ciKStart - kMin) / kRange) * 100;
     const ciKWidthPct = ((ciKEnd - ciKStart) / kRange) * 100;
 
-    const cMin = 0, cMax = 50, cRange = cMax - cMin;
+    const cMin = parseFloat(cSlider.min), cMax = parseFloat(cSlider.max), cRange = cMax - cMin;
     const ciCStart = Math.max(cMin, c - ciCWidth);
     const ciCEnd = Math.min(cMax, c + ciCWidth);
     const ciCLeft = ((ciCStart - cMin) / cRange) * 100;
@@ -567,16 +648,24 @@ function initPhysicsTab(){
     // decomposition
     const fElastic = k * x_m;
     const fViscous = c * v_m;
-    const total = fElastic + fViscous || 1;
-    const pElastic = Math.round(fElastic/total*100);
-    const pViscous = 100 - pElastic;
+    const totalForce = fElastic + fViscous;
+    const totalDiv = totalForce === 0 ? 1 : totalForce;
+    const pElastic = totalForce === 0 ? 0 : Math.round(fElastic/totalDiv*100);
+    const pViscous = totalForce === 0 ? 0 : 100 - pElastic;
     document.getElementById("elasticBar").style.width = pElastic+"%";
     document.getElementById("viscousBar").style.width = pViscous+"%";
     document.getElementById("elasticPct").textContent = pElastic+"%";
     document.getElementById("viscousPct").textContent = pViscous+"%";
 
-    drawDepthPlot(k, x);
-    drawTimePlot(k, c, x);
+    // Display total force and calculation formulas
+    document.getElementById("totalForceDisplay").textContent = `Total force F = ${totalForce.toFixed(3)} N`;
+    document.getElementById("elasticFormula").innerHTML = `F<sub>elastic</sub> = k &times; x<sub>m</sub> = ${k} N/m &times; ${x_m.toFixed(4)} m = ${fElastic.toFixed(3)} N`;
+    document.getElementById("viscousFormula").innerHTML = `F<sub>viscous</sub> = c &times; v<sub>m</sub> = ${c} Ns/m &times; ${v_m.toFixed(4)} m/s = ${fViscous.toFixed(3)} N`;
+
+    const xMax = parseFloat(xSlider.max);
+    const depthYMax = kMax * (xMax / 1000);
+    drawDepthPlot(k, x, depthYMax, depthHoverX);
+    drawTimePlot(k, c, x, timeHoverX);
   }
 
   [kSlider,cSlider,xSlider,vSlider].forEach(s=>s.addEventListener("input", update));
@@ -584,44 +673,154 @@ function initPhysicsTab(){
   updateMonteCarloVisibility();
 }
 
-function drawDepthPlot(k, xCurrent){
+function drawDepthPlot(k, xCurrent, yMax, hoverX){
   const canvas = document.getElementById("plotDepth");
   const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height, pad = 28;
+  const W = canvas.width, H = canvas.height;
+  const padLeft = 55, padBottom = 35, padRight = 15, padTop = 15;
+  const plotW = W - padLeft - padRight;
+  const plotH = H - padBottom - padTop;
+  
   ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle = "#D8DEE2"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-10,H-pad); ctx.moveTo(pad,H-pad); ctx.lineTo(pad,10); ctx.stroke();
-
+  
+  // 1. Draw gridlines
   const xMax = 10;
-  ctx.strokeStyle = "#378ADD"; ctx.lineWidth = 2;
+  const xTicks = [0, 2, 4, 6, 8, 10];
+  xTicks.forEach(tick => {
+    const px = padLeft + (tick / xMax) * plotW;
+    ctx.strokeStyle = "#EDF1F3";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, H - padBottom);
+    ctx.lineTo(px, padTop);
+    ctx.stroke();
+  });
+
+  const yTicks = [0, 1, 2, 3, 4, 5];
+  yTicks.forEach(tick => {
+    const py = H - padBottom - (tick / yMax) * plotH;
+    ctx.strokeStyle = "#EDF1F3";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, py);
+    ctx.lineTo(W - padRight, py);
+    ctx.stroke();
+  });
+
+  // 2. Draw axis lines
+  ctx.strokeStyle = "#D8DEE2";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padLeft, H - padBottom);
+  ctx.lineTo(W - padRight, H - padBottom);
+  ctx.moveTo(padLeft, H - padBottom);
+  ctx.lineTo(padLeft, padTop);
+  ctx.stroke();
+
+  // 3. Draw tick marks and numeric labels
+  xTicks.forEach(tick => {
+    const px = padLeft + (tick / xMax) * plotW;
+    ctx.strokeStyle = "#D8DEE2";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, H - padBottom);
+    ctx.lineTo(px, H - padBottom + 4);
+    ctx.stroke();
+
+    ctx.fillStyle = "#5C6B73";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(tick + " mm", px, H - padBottom + 6);
+  });
+
+  yTicks.forEach(tick => {
+    const py = H - padBottom - (tick / yMax) * plotH;
+    ctx.strokeStyle = "#D8DEE2";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, py);
+    ctx.lineTo(padLeft - 4, py);
+    ctx.stroke();
+
+    ctx.fillStyle = "#5C6B73";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(tick + " N", padLeft - 8, py);
+  });
+
+  // 4. Draw curves
+  ctx.strokeStyle = "#378ADD";
+  ctx.lineWidth = 2;
   ctx.beginPath();
   for(let i=0;i<=100;i++){
     const x = i/100*xMax;
     const f = k * (x / 1000);
-    const px = pad + (x/xMax)*(W-pad-10);
-    const py = H-pad - (f/(k*(xMax/1000)))*(H-pad-10);
+    const px = padLeft + (x/xMax)*plotW;
+    const py = H-padBottom - (f/yMax)*plotH;
     if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
   }
   ctx.stroke();
 
   // current point
-  const px = pad + (xCurrent/xMax)*(W-pad-10);
-  const py = H-pad - (k*(xCurrent/1000)/(k*(xMax/1000)))*(H-pad-10);
+  const px = padLeft + (xCurrent/xMax)*plotW;
+  const py = H-padBottom - (k*(xCurrent/1000)/yMax)*plotH;
   ctx.fillStyle = "#0F6E56";
-  ctx.beginPath(); ctx.arc(px,py,4,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(px,py,4,0,2*Math.PI); ctx.fill();
 
-  ctx.fillStyle = "#5C6B73"; ctx.font="10px sans-serif";
-  ctx.fillText("depth (mm)", W-70, H-10);
-  ctx.save(); ctx.translate(12,20); ctx.fillText("force", 0,0); ctx.restore();
+  // Axis titles
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "11px sans-serif";
+  ctx.fillText("depth (mm)", padLeft + plotW / 2, H - 2);
+
+  ctx.save();
+  ctx.translate(12, padTop + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("force (N)", 0, 0);
+  ctx.restore();
+
+  // Hover tooltip
+  if (hoverX !== null && hoverX !== undefined) {
+    const xHover = ((hoverX - padLeft) / plotW) * xMax;
+    const fHover = k * (xHover / 1000);
+    const pyHover = H - padBottom - (fHover / yMax) * plotH;
+
+    ctx.strokeStyle = "rgba(92, 107, 115, 0.4)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(hoverX, H - padBottom);
+    ctx.lineTo(hoverX, padTop);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#378ADD";
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hoverX, pyHover, 6, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+
+    const tooltipText = `x = ${xHover.toFixed(2)} mm, F = ${fHover.toFixed(3)} N`;
+    drawTooltip(ctx, tooltipText, hoverX, pyHover, W, H);
+  }
 }
 
-function drawTimePlot(k,c,xTarget){
+function drawTimePlot(k, c, xTarget, hoverX){
   const canvas = document.getElementById("plotTime");
   const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height, pad = 28;
+  const W = canvas.width, H = canvas.height;
+  const padLeft = 55, padBottom = 35, padRight = 15, padTop = 15;
+  const plotW = W - padLeft - padRight;
+  const plotH = H - padBottom - padTop;
+  
   ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle = "#D8DEE2"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-10,H-pad); ctx.moveTo(pad,H-pad); ctx.lineTo(pad,10); ctx.stroke();
 
   // triangular indent-hold-release profile over t in [0,3]
   const T = 3, rampT = 0.8;
@@ -643,19 +842,138 @@ function drawTimePlot(k,c,xTarget){
     pts.push([t,f]);
     if(Math.abs(f)>maxF) maxF = Math.abs(f);
   }
-  ctx.strokeStyle = "#1D9E75"; ctx.lineWidth = 2;
+
+  const margin = 0.05;
+  const pyOfF = (f) => {
+    const norm = (f + maxF) / (2 * maxF);
+    const scaled = margin + norm * (1 - 2 * margin);
+    return H - padBottom - scaled * plotH;
+  };
+
+  // 1. Draw gridlines
+  const tTicks = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+  tTicks.forEach(tick => {
+    const px = padLeft + (tick / T) * plotW;
+    ctx.strokeStyle = "#EDF1F3";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, H - padBottom);
+    ctx.lineTo(px, padTop);
+    ctx.stroke();
+  });
+
+  const yTicks = [-maxF, -maxF/2, 0, maxF/2, maxF];
+  yTicks.forEach(tick => {
+    const py = pyOfF(tick);
+    ctx.strokeStyle = "#EDF1F3";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, py);
+    ctx.lineTo(W - padRight, py);
+    ctx.stroke();
+  });
+
+  // 2. Draw axis lines
+  ctx.strokeStyle = "#D8DEE2";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padLeft, H - padBottom);
+  ctx.lineTo(W - padRight, H - padBottom);
+  ctx.moveTo(padLeft, H - padBottom);
+  ctx.lineTo(padLeft, padTop);
+  ctx.stroke();
+
+  // 3. Draw tick marks and numeric labels
+  tTicks.forEach(tick => {
+    const px = padLeft + (tick / T) * plotW;
+    ctx.strokeStyle = "#D8DEE2";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, H - padBottom);
+    ctx.lineTo(px, H - padBottom + 4);
+    ctx.stroke();
+
+    ctx.fillStyle = "#5C6B73";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(tick.toFixed(1) + " s", px, H - padBottom + 6);
+  });
+
+  yTicks.forEach(tick => {
+    const py = pyOfF(tick);
+    ctx.strokeStyle = "#D8DEE2";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, py);
+    ctx.lineTo(padLeft - 4, py);
+    ctx.stroke();
+
+    ctx.fillStyle = "#5C6B73";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    const labelVal = Math.abs(tick) < 1e-5 ? "0.00 N" : tick.toFixed(2) + " N";
+    ctx.fillText(labelVal, padLeft - 8, py);
+  });
+
+  // 4. Draw curves
+  ctx.strokeStyle = "#1D9E75";
+  ctx.lineWidth = 2;
   ctx.beginPath();
   pts.forEach(([t,f],i)=>{
-    const px = pad + (t/T)*(W-pad-10);
-    const py = H-pad - ((f+maxF)/(2*maxF))*(H-pad-10)*0.9 - (H-pad)*0.05;
+    const px = padLeft + (t/T)*plotW;
+    const py = pyOfF(f);
     if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
   });
   ctx.stroke();
 
-  ctx.fillStyle = "#5C6B73"; ctx.font="10px sans-serif";
-  ctx.fillText("time (s)", W-55, H-10);
-  ctx.save(); ctx.translate(12,20); ctx.fillText("force", 0,0); ctx.restore();
-}
+  // Axis titles
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "11px sans-serif";
+  ctx.fillText("time (s)", padLeft + plotW / 2, H - 2);
+
+  ctx.save();
+  ctx.translate(12, padTop + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("force (N)", 0, 0);
+  ctx.restore();
+
+  // Hover tooltip
+  if (hoverX !== null && hoverX !== undefined) {
+    const tHover = ((hoverX - padLeft) / plotW) * T;
+    const index = Math.round((tHover / T) * 100);
+    const clampedIndex = Math.max(0, Math.min(100, index));
+    const pt = pts[clampedIndex];
+    const tVal = pt[0];
+    const fVal = pt[1];
+    const pxHover = padLeft + (tVal / T) * plotW;
+    const pyHover = pyOfF(fVal);
+
+    ctx.strokeStyle = "rgba(92, 107, 115, 0.4)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pxHover, H - padBottom);
+    ctx.lineTo(pxHover, padTop);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#1D9E75";
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(pxHover, pyHover, 6, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+
+    const tooltipText = `t = ${tVal.toFixed(2)} s, F = ${fVal.toFixed(3)} N`;
+    drawTooltip(ctx, tooltipText, pxHover, pyHover, W, H);
+  }
 </script>
 </body>
 </html>
