@@ -397,3 +397,113 @@ canvas {
     grid-template-columns: 1fr;
   }
 }
+
+/* Parameter Panel styles */
+.param-panel {
+  background: var(--navy-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  overflow: hidden;
+  transition: background-color 0.3s ease;
+}
+
+.param-panel-header {
+  padding: 10px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8FA9BB;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.param-panel-header:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.param-panel-toggle-icon {
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.param-panel.collapsed .param-panel-toggle-icon {
+  transform: rotate(0deg);
+}
+
+.param-panel:not(.collapsed) .param-panel-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.param-panel-content {
+  padding: 16px 32px 24px;
+  max-height: 1000px;
+  opacity: 1;
+  visibility: visible;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.2s ease,
+              visibility 0.2s ease;
+}
+
+.param-panel.collapsed .param-panel-content {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+}
+
+/* Param Panel text and input overrides */
+.param-panel .slider-row {
+  margin-bottom: 16px;
+}
+
+.param-col > div[style*="font-size"] {
+  color: #8FA9BB !important;
+}
+
+.param-panel .slider-row .label-row {
+  color: #8FA9BB;
+}
+
+.param-panel .slider-row .label-row span.val {
+  color: #fff;
+}
+
+.param-panel .small-num-input {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.param-panel .small-num-input:focus {
+  border-color: var(--teal-light);
+  box-shadow: 0 0 0 2px rgba(29, 158, 117, 0.4);
+}
+
+.param-panel .note {
+  color: #A9C4D8;
+  border-left-color: var(--teal-light) !important;
+}
+
+/* For smaller screens, stack columns */
+@media (max-width: 760px) {
+  .param-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}

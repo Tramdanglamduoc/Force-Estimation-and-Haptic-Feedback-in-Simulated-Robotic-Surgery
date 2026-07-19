@@ -131,6 +131,7 @@ export function initPhysicsTab() {
       
       if (nuNote) {
         nuNote.style.display = cfg.showNote ? "block" : "none";
+        nuNote.open = false; // Reset to collapsed/closed state when tissue type changes
       }
     }
     update();
@@ -450,6 +451,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const mcToggle = document.getElementById("mcToggle");
   if (mcToggle) {
     mcToggle.addEventListener("click", toggleMonteCarlo);
+  }
+
+  // Wire up parameters panel toggle click event
+  const paramPanelHeader = document.getElementById("paramPanelHeader");
+  const paramPanel = document.getElementById("paramPanel");
+  if (paramPanelHeader && paramPanel) {
+    paramPanelHeader.addEventListener("click", () => {
+      paramPanel.classList.toggle("collapsed");
+      const isCollapsed = paramPanel.classList.contains("collapsed");
+      const label = paramPanelHeader.querySelector("span:first-child");
+      if (label) {
+        label.textContent = isCollapsed ? "Show material & tool parameters" : "Hide material & tool parameters";
+      }
+    });
   }
 
   // Wait for DOM to render physics panel before wiring inputs
