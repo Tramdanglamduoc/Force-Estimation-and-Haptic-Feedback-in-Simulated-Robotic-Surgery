@@ -49,6 +49,11 @@ export function initPhysicsTab() {
   const holdSlider = document.getElementById("holdSlider");
   const rampMinSlider = document.getElementById("rampMinSlider");
   const rampMaxSlider = document.getElementById("rampMaxSlider");
+
+  const kInput = document.getElementById("kInput");
+  const cInput = document.getElementById("cInput");
+  const xInput = document.getElementById("xInput");
+  const vInput = document.getElementById("vInput");
   
   const kVal = document.getElementById("kVal");
   const cVal = document.getElementById("cVal");
@@ -59,6 +64,20 @@ export function initPhysicsTab() {
   const rampMaxVal = document.getElementById("rampMaxVal");
 
   if (!kSlider || !cSlider || !xSlider || !vSlider || !holdSlider || !rampMinSlider || !rampMaxSlider) return;
+
+  const inputs = [
+    { slider: kSlider, input: kInput },
+    { slider: cSlider, input: cInput },
+    { slider: xSlider, input: xInput },
+    { slider: vSlider, input: vInput }
+  ];
+
+  inputs.forEach(({ slider, input }) => {
+    if (!slider || !input) return;
+    input.min = slider.min;
+    input.max = slider.max;
+    input.step = slider.step || "1";
+  });
 
   function update() {
     const k = parseFloat(kSlider.value);
@@ -75,6 +94,11 @@ export function initPhysicsTab() {
     holdVal.textContent = holdDuration.toFixed(1);
     rampMinVal.textContent = rampMin.toFixed(2);
     rampMaxVal.textContent = rampMax.toFixed(1);
+
+    if (kInput && document.activeElement !== kInput) kInput.value = k;
+    if (cInput && document.activeElement !== cInput) cInput.value = c;
+    if (xInput && document.activeElement !== xInput) xInput.value = x.toFixed(1);
+    if (vInput && document.activeElement !== vInput) vInput.value = v.toFixed(1);
 
     // Unit conversions using effective velocity based on dynamic clamp boundaries
     const x_m = mmToM(x);
@@ -188,6 +212,32 @@ export function initPhysicsTab() {
   }
 
   [kSlider, cSlider, xSlider, vSlider, holdSlider, rampMinSlider, rampMaxSlider].forEach(s => s.addEventListener("input", update));
+
+  inputs.forEach(({ slider, input }) => {
+    if (!slider || !input) return;
+
+    input.addEventListener("input", () => {
+      const val = parseFloat(input.value);
+      if (!isNaN(val)) {
+        slider.value = val;
+        update();
+      }
+    });
+
+    const syncOnFinished = () => {
+      let val = parseFloat(input.value);
+      if (isNaN(val)) {
+        val = parseFloat(slider.value);
+      }
+      slider.value = val;
+      input.value = slider.value;
+      update();
+    };
+
+    input.addEventListener("change", syncOnFinished);
+    input.addEventListener("blur", syncOnFinished);
+  });
+
   update();
   updateMonteCarloVisibility();
 }

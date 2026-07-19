@@ -222,6 +222,46 @@ input[type=range] {
   accent-color: var(--teal);
 }
 
+.input-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-slider-container input[type=range] {
+  flex: 1;
+}
+
+.small-num-input {
+  width: 60px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--navy);
+  background-color: #fff;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.small-num-input:focus {
+  border-color: var(--teal-light);
+  box-shadow: 0 0 0 2px rgba(29, 158, 117, 0.2);
+}
+
+/* Hide standard HTML5 number spinners for a cleaner appearance */
+.small-num-input::-webkit-outer-spin-button,
+.small-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.small-num-input {
+  -moz-appearance: textfield;
+}
+
 .plots-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

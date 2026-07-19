@@ -70,15 +70,24 @@ function physicsTabHTML() {
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;">Core model parameters</div>
         <div class="slider-row">
           <div class="label-row"><span>Stiffness k (N/m)</span><span class="val" id="kVal">200</span></div>
-          <input type="range" id="kSlider" min="10" max="500" value="200">
+          <div class="input-slider-container">
+            <input type="range" id="kSlider" min="10" max="500" value="200">
+            <input type="number" id="kInput" class="small-num-input">
+          </div>
         </div>
         <div class="slider-row">
           <div class="label-row"><span>Damping c (Ns/m)</span><span class="val" id="cVal">10</span></div>
-          <input type="range" id="cSlider" min="0" max="50" value="10">
+          <div class="input-slider-container">
+            <input type="range" id="cSlider" min="0" max="50" value="10">
+            <input type="number" id="cInput" class="small-num-input">
+          </div>
         </div>
         <div class="slider-row">
           <div class="label-row"><span>Indentation depth x (mm)</span><span class="val" id="xVal">5</span></div>
-          <input type="range" id="xSlider" min="0" max="10" step="0.1" value="5">
+          <div class="input-slider-container">
+            <input type="range" id="xSlider" min="0" max="10" step="0.1" value="5">
+            <input type="number" id="xInput" class="small-num-input">
+          </div>
         </div>
         
         <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
@@ -86,7 +95,10 @@ function physicsTabHTML() {
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;">Time animation parameters</div>
         <div class="slider-row">
           <div class="label-row"><span>Instantaneous velocity ẋ (mm/s)</span><span class="val" id="vVal">5</span></div>
-          <input type="range" id="vSlider" min="0.1" max="50" step="0.1" value="5">
+          <div class="input-slider-container">
+            <input type="range" id="vSlider" min="0.1" max="50" step="0.1" value="5">
+            <input type="number" id="vInput" class="small-num-input">
+          </div>
         </div>
         <div class="slider-row">
           <div class="label-row"><span>Hold duration (s)</span><span class="val" id="holdVal">1.0</span></div>
