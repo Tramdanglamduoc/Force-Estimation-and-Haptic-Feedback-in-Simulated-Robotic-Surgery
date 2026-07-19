@@ -89,6 +89,60 @@ function physicsTabHTML() {
             <input type="number" id="xInput" class="small-num-input">
           </div>
         </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;">Material properties</div>
+        <div class="slider-row">
+          <div class="label-row"><span>Poisson's ratio (&nu;)</span><span class="val" id="nuVal">0.42</span></div>
+          <div class="input-slider-container">
+            <input type="range" id="nuSlider" min="0.30" max="0.45" step="0.01" value="0.42">
+            <input type="number" id="nuInput" class="small-num-input">
+          </div>
+          <div id="nuNote" class="note" style="margin-top: 6px; display: none; font-size: 11px; color: var(--text-muted); line-height: 1.4; border-left: 2px solid var(--teal); padding-left: 8px;">
+            Muscle behaves differently depending on how it's deformed relative to the fiber direction:<br><br>
+            <strong>Case 1 &mdash; Isotropic</strong> (single value, same in all directions): &nu; = 0.47&ndash;0.49. This is how every other tissue in this simulation is modeled (liver, skin, fat, kidney, spleen) &mdash; one number describes the whole tissue regardless of push direction.<br><br>
+            <strong>Case 2 &mdash; Anisotropic</strong> (real muscle, direction-dependent): &nu; = 0.28&ndash;0.74, made up of three distinct values depending on direction:
+            <ul style="margin: 4px 0; padding-left: 16px;">
+              <li>longitudinal-transverse &approx; 0.47</li>
+              <li>transverse-transverse &approx; 0.28</li>
+              <li>transverse-longitudinal &approx; 0.74</li>
+            </ul>
+            This reflects muscle fibers running in one dominant direction &mdash; squeezing along the fiber behaves differently than squeezing across it.<br><br>
+            This simulation uses Case 2 (0.28&ndash;0.74) as the actual slider range for Muscle, with default &nu; = 0.47 (the longitudinal-transverse value).
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;" class="tool-section-divider">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;" class="tool-section-title">Tool contact parameters</div>
+        
+        <div id="groupAControls" class="slider-row" style="display: none;">
+          <div class="label-row"><span>Contact radius a (mm)</span><span class="val" id="contactRadiusVal">0.29</span></div>
+          <div class="input-slider-container">
+            <input type="range" id="contactRadiusSlider" min="0.29" max="0.65" step="0.01" value="0.29">
+            <input type="number" id="contactRadiusInput" class="small-num-input">
+          </div>
+          <div id="contactRadiusNote" class="note" style="margin-top: 6px; display: none; font-size: 10.5px; color: var(--text-muted); line-height: 1.4; border-left: 2px solid var(--teal); padding-left: 8px;">
+            Contact modeled as circular for simplicity; actual edge/line contact is a rougher approximation.
+          </div>
+        </div>
+
+        <div id="groupBControls" style="display: none;">
+          <div class="slider-row">
+            <div class="label-row"><span>Jaw area A (mm&sup2;)</span><span class="val" id="jawAreaVal">100</span></div>
+            <div class="input-slider-container">
+              <input type="range" id="jawAreaSlider" min="100" max="250" step="1" value="100">
+              <input type="number" id="jawAreaInput" class="small-num-input">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="label-row"><span>Tissue thickness h (mm)</span><span class="val" id="thicknessVal">3</span></div>
+            <div class="input-slider-container">
+              <input type="range" id="thicknessSlider" min="3" max="15" step="0.1" value="3">
+              <input type="number" id="thicknessInput" class="small-num-input">
+            </div>
+          </div>
+        </div>
         
         <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
         

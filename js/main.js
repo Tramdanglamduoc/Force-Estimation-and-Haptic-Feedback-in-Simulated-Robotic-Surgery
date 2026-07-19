@@ -63,13 +63,155 @@ export function initPhysicsTab() {
   const rampMinVal = document.getElementById("rampMinVal");
   const rampMaxVal = document.getElementById("rampMaxVal");
 
+  const nuSlider = document.getElementById("nuSlider");
+  const nuInput = document.getElementById("nuInput");
+  const nuVal = document.getElementById("nuVal");
+  const nuNote = document.getElementById("nuNote");
+
+  const contactRadiusSlider = document.getElementById("contactRadiusSlider");
+  const contactRadiusInput = document.getElementById("contactRadiusInput");
+  const contactRadiusVal = document.getElementById("contactRadiusVal");
+  const contactRadiusNote = document.getElementById("contactRadiusNote");
+
+  const jawAreaSlider = document.getElementById("jawAreaSlider");
+  const jawAreaInput = document.getElementById("jawAreaInput");
+  const jawAreaVal = document.getElementById("jawAreaVal");
+
+  const thicknessSlider = document.getElementById("thicknessSlider");
+  const thicknessInput = document.getElementById("thicknessInput");
+  const thicknessVal = document.getElementById("thicknessVal");
+
+  const groupAControls = document.getElementById("groupAControls");
+  const groupBControls = document.getElementById("groupBControls");
+
+  const tissueTypeSelect = document.getElementById("tissueType");
+  const toolTypeSelect = document.getElementById("toolType");
+
   if (!kSlider || !cSlider || !xSlider || !vSlider || !holdSlider || !rampMinSlider || !rampMaxSlider) return;
+
+  const tissueNuConfig = {
+    "Liver": { min: 0.30, max: 0.45, default: 0.42, step: 0.01 },
+    "Skin": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
+    "Muscle": { min: 0.28, max: 0.74, default: 0.47, step: 0.01, showNote: true },
+    "Fat": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
+    "Kidney": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
+    "Spleen": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 }
+  };
+
+  const toolConfig = {
+    "Needle tip": { group: "A", min: 0.29, max: 0.65, default: 0.29, step: 0.01 },
+    "Blunt palpation probe": { group: "A", min: 2.5, max: 5.0, default: 2.5, step: 0.1 },
+    "Monopolar hook/spatula": { group: "A", min: 0.3, max: 0.8, default: 0.3, step: 0.01, showNote: true },
+    "Suction/irrigation cannula tip": { group: "A", min: 1.5, max: 5.0, default: 1.5, step: 0.1 },
+    "Flat grasper": { group: "B", minA: 100, maxA: 250, defaultA: 100, stepA: 1, minH: 3, maxH: 15, defaultH: 3, stepH: 0.1 },
+    "Grasping forceps/bipolar forceps": { group: "B", minA: 100, maxA: 250, defaultA: 100, stepA: 1, minH: 3, maxH: 15, defaultH: 3, stepH: 0.1 }
+  };
+
+  function handleTissueChange() {
+    if (!tissueTypeSelect || !nuSlider) return;
+    const selected = tissueTypeSelect.value;
+    const cfg = tissueNuConfig[selected];
+    if (cfg) {
+      nuSlider.min = cfg.min;
+      nuSlider.max = cfg.max;
+      nuSlider.step = cfg.step;
+      if (nuInput) {
+        nuInput.min = cfg.min;
+        nuInput.max = cfg.max;
+        nuInput.step = cfg.step;
+      }
+      
+      nuSlider.value = cfg.default;
+      if (nuInput) {
+        nuInput.value = cfg.default;
+      }
+      if (nuVal) {
+        nuVal.textContent = cfg.default.toFixed(2);
+      }
+      
+      if (nuNote) {
+        nuNote.style.display = cfg.showNote ? "block" : "none";
+      }
+    }
+    update();
+  }
+
+  function handleToolChange() {
+    if (!toolTypeSelect) return;
+    const selected = toolTypeSelect.value;
+    const cfg = toolConfig[selected];
+    if (cfg) {
+      if (cfg.group === "A") {
+        if (groupAControls) groupAControls.style.display = "block";
+        if (groupBControls) groupBControls.style.display = "none";
+        
+        if (contactRadiusSlider) {
+          contactRadiusSlider.min = cfg.min;
+          contactRadiusSlider.max = cfg.max;
+          contactRadiusSlider.step = cfg.step;
+          contactRadiusSlider.value = cfg.default;
+        }
+        if (contactRadiusInput) {
+          contactRadiusInput.min = cfg.min;
+          contactRadiusInput.max = cfg.max;
+          contactRadiusInput.step = cfg.step;
+          contactRadiusInput.value = cfg.default;
+        }
+        if (contactRadiusVal) {
+          contactRadiusVal.textContent = cfg.default.toFixed(2);
+        }
+        if (contactRadiusNote) {
+          contactRadiusNote.style.display = cfg.showNote ? "block" : "none";
+        }
+      } else if (cfg.group === "B") {
+        if (groupAControls) groupAControls.style.display = "none";
+        if (groupBControls) groupBControls.style.display = "block";
+        
+        if (jawAreaSlider) {
+          jawAreaSlider.min = cfg.minA;
+          jawAreaSlider.max = cfg.maxA;
+          jawAreaSlider.step = cfg.stepA;
+          jawAreaSlider.value = cfg.defaultA;
+        }
+        if (jawAreaInput) {
+          jawAreaInput.min = cfg.minA;
+          jawAreaInput.max = cfg.maxA;
+          jawAreaInput.step = cfg.stepA;
+          jawAreaInput.value = cfg.defaultA;
+        }
+        if (jawAreaVal) {
+          jawAreaVal.textContent = cfg.defaultA;
+        }
+
+        if (thicknessSlider) {
+          thicknessSlider.min = cfg.minH;
+          thicknessSlider.max = cfg.maxH;
+          thicknessSlider.step = cfg.stepH;
+          thicknessSlider.value = cfg.defaultH;
+        }
+        if (thicknessInput) {
+          thicknessInput.min = cfg.minH;
+          thicknessInput.max = cfg.maxH;
+          thicknessInput.step = cfg.stepH;
+          thicknessInput.value = cfg.defaultH;
+        }
+        if (thicknessVal) {
+          thicknessVal.textContent = cfg.defaultH.toFixed(1);
+        }
+      }
+    }
+    update();
+  }
 
   const inputs = [
     { slider: kSlider, input: kInput },
     { slider: cSlider, input: cInput },
     { slider: xSlider, input: xInput },
-    { slider: vSlider, input: vInput }
+    { slider: vSlider, input: vInput },
+    { slider: nuSlider, input: nuInput },
+    { slider: contactRadiusSlider, input: contactRadiusInput },
+    { slider: jawAreaSlider, input: jawAreaInput },
+    { slider: thicknessSlider, input: thicknessInput }
   ];
 
   inputs.forEach(({ slider, input }) => {
@@ -99,6 +241,48 @@ export function initPhysicsTab() {
     if (cInput && document.activeElement !== cInput) cInput.value = c;
     if (xInput && document.activeElement !== xInput) xInput.value = x.toFixed(1);
     if (vInput && document.activeElement !== vInput) vInput.value = v.toFixed(1);
+
+    // Poisson's ratio (nu) updates
+    if (nuSlider && nuVal) {
+      const nu = parseFloat(nuSlider.value);
+      nuVal.textContent = nu.toFixed(2);
+      if (nuInput && document.activeElement !== nuInput) nuInput.value = nu.toFixed(2);
+      
+      // TODO: Reserved for future k/c coupling. 
+      // ν (Poisson's ratio) will be used to adjust stiffness (k) and damping (c) ranges in a future update.
+      // For now, it exists as an independent, storable UI parameter only.
+    }
+
+    // Tool contact parameter updates
+    if (toolTypeSelect) {
+      const selectedTool = toolTypeSelect.value;
+      const cfg = toolConfig[selectedTool];
+      if (cfg) {
+        if (cfg.group === "A") {
+          if (contactRadiusSlider && contactRadiusVal) {
+            const a = parseFloat(contactRadiusSlider.value);
+            contactRadiusVal.textContent = a.toFixed(2);
+            if (contactRadiusInput && document.activeElement !== contactRadiusInput) {
+              contactRadiusInput.value = a.toFixed(2);
+            }
+          }
+        } else if (cfg.group === "B") {
+          if (jawAreaSlider && jawAreaVal && thicknessSlider && thicknessVal) {
+            const aArea = parseFloat(jawAreaSlider.value);
+            const hThickness = parseFloat(thicknessSlider.value);
+            jawAreaVal.textContent = aArea.toFixed(0);
+            thicknessVal.textContent = hThickness.toFixed(1);
+            
+            if (jawAreaInput && document.activeElement !== jawAreaInput) {
+              jawAreaInput.value = aArea.toFixed(0);
+            }
+            if (thicknessInput && document.activeElement !== thicknessInput) {
+              thicknessInput.value = hThickness.toFixed(1);
+            }
+          }
+        }
+      }
+    }
 
     // Unit conversions using effective velocity based on dynamic clamp boundaries
     const x_m = mmToM(x);
@@ -211,7 +395,12 @@ export function initPhysicsTab() {
     drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax);
   }
 
-  [kSlider, cSlider, xSlider, vSlider, holdSlider, rampMinSlider, rampMaxSlider].forEach(s => s.addEventListener("input", update));
+  [
+    kSlider, cSlider, xSlider, vSlider, holdSlider, rampMinSlider, rampMaxSlider,
+    nuSlider, contactRadiusSlider, jawAreaSlider, thicknessSlider
+  ].forEach(s => {
+    if (s) s.addEventListener("input", update);
+  });
 
   inputs.forEach(({ slider, input }) => {
     if (!slider || !input) return;
@@ -237,6 +426,17 @@ export function initPhysicsTab() {
     input.addEventListener("change", syncOnFinished);
     input.addEventListener("blur", syncOnFinished);
   });
+
+  if (tissueTypeSelect) {
+    tissueTypeSelect.addEventListener("change", handleTissueChange);
+  }
+  if (toolTypeSelect) {
+    toolTypeSelect.addEventListener("change", handleToolChange);
+  }
+
+  // Initialize tissue and tool defaults
+  if (tissueTypeSelect) handleTissueChange();
+  if (toolTypeSelect) handleToolChange();
 
   update();
   updateMonteCarloVisibility();
