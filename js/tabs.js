@@ -75,9 +75,10 @@ function physicsTabHTML() {
         <div class="slider-row">
           <div class="label-row"><span>Stiffness k (N/m)</span><span class="val" id="kVal">200</span></div>
           <div class="input-slider-container">
-            <input type="range" id="kSlider" min="10" max="500" value="200">
-            <input type="number" id="kInput" class="small-num-input">
+            <input type="range" id="kSlider" class="locked-slider" min="10" max="500" value="200" disabled>
+            <input type="number" id="kInput" class="small-num-input" readonly disabled style="pointer-events: none; opacity: 0.7;">
           </div>
+          <div id="kCalcSteps" class="calc-steps"></div>
         </div>
         <div class="slider-row">
           <div class="label-row"><span>Damping c (Ns/m)</span><span class="val" id="cVal">10</span></div>
@@ -142,7 +143,7 @@ function physicsTabHTML() {
             <p class="sub" style="margin-bottom: 8px;">k, c confidence interval (bootstrap / least-squares)</p>
             <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, c</span>
             <div class="ci-row">
-              <div class="name">k</div>
+              <div class="name" id="ciKName">E</div>
               <div class="ci-bar"><div class="fill" id="ciK"></div></div>
               <div id="ciKLabel" style="font-size:12px;color:var(--text-muted);white-space:nowrap;"></div>
             </div>

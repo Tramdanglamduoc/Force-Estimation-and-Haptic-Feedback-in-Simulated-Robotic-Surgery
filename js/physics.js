@@ -43,16 +43,16 @@ export function calculateTotalForce(fElastic, fViscous) {
 }
 
 /**
- * Calculate the raw confidence interval widths for k and c (illustrative bootstrap CI)
- * @param {number} k stiffness value (N/m)
+ * Calculate the raw confidence interval widths for E and c (illustrative bootstrap CI)
+ * @param {number} E elastic modulus (kPa)
  * @param {number} c damping value (Ns/m)
- * @returns {{ciKWidth: number, ciCWidth: number}} raw CI widths
+ * @returns {{ciEWidth: number, ciCWidth: number}} raw CI widths
  */
-export function calculateUncertainty(k, c) {
-  const ciKWidth = k * 0.08;
+export function calculateUncertainty(E, c) {
+  const ciEWidth = E * 0.15;
   const ciCWidth = c * 0.15;
   return {
-    ciKWidth,
+    ciEWidth,
     ciCWidth
   };
 }

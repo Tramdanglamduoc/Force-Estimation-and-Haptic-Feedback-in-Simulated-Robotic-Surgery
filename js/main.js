@@ -66,7 +66,12 @@ export function initPhysicsTab() {
   const nuSlider = document.getElementById("nuSlider");
   const nuInput = document.getElementById("nuInput");
   const nuVal = document.getElementById("nuVal");
-  const nuNote = document.getElementById("nuNote");
+  const nuSliderRow = document.getElementById("nuSliderRow");
+
+  const eSlider = document.getElementById("eSlider");
+  const eInput = document.getElementById("eInput");
+  const eVal = document.getElementById("eVal");
+  const eCaption = document.getElementById("eCaption");
 
   const contactRadiusSlider = document.getElementById("contactRadiusSlider");
   const contactRadiusInput = document.getElementById("contactRadiusInput");
@@ -89,13 +94,34 @@ export function initPhysicsTab() {
 
   if (!kSlider || !cSlider || !xSlider || !vSlider || !holdSlider || !rampMinSlider || !rampMaxSlider) return;
 
-  const tissueNuConfig = {
-    "Liver": { min: 0.30, max: 0.45, default: 0.42, step: 0.01 },
-    "Skin": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
-    "Muscle": { min: 0.28, max: 0.74, default: 0.47, step: 0.01, showNote: true },
-    "Fat": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
-    "Kidney": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
-    "Spleen": { min: 0.47, max: 0.49, default: 0.48, step: 0.01 }
+  const tissueConfig = {
+    "Liver": {
+      name: "Liver (excluding capsule)",
+      E_full: [1.0, 4.0],
+      E_tight: [1.0, 3.0],
+      c_full: [2.0, 10.0],
+      c_tight: [2.0, 6.0],
+      nu: { min: 0.30, max: 0.45, default: 0.42, step: 0.01 },
+      priority: "in vivo > in situ > ex vivo"
+    },
+    "Kidney": {
+      name: "Kidney (parenchyma, excluding capsule)",
+      E_full: [1.0, 5.0],
+      E_tight: [1.0, 3.0],
+      c_full: [2.0, 10.0],
+      c_tight: [2.0, 6.0],
+      nu: { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
+      priority: "in vivo > in situ > ex vivo"
+    },
+    "Spleen": {
+      name: "Spleen (parenchyma, excluding capsule)",
+      E_full: [1.0, 4.0],
+      E_tight: [1.5, 3.0],
+      c_full: [2.0, 8.0],
+      c_tight: [2.0, 5.0],
+      nu: { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
+      priority: "in vivo > in situ > ex vivo"
+    }
   };
 
   const toolConfig = {
@@ -107,33 +133,117 @@ export function initPhysicsTab() {
     "Grasping forceps/bipolar forceps": { group: "B", minA: 100, maxA: 250, defaultA: 100, stepA: 1, minH: 3, maxH: 15, defaultH: 3, stepH: 0.1 }
   };
 
+  function updateESliderBackground(cfg) {
+    if (!eSlider) return;
+    const min = cfg.E_full[0];
+    const max = cfg.E_full[1];
+    const tightMin = cfg.E_tight[0];
+    const tightMax = cfg.E_tight[1];
+    
+    const pMin = ((tightMin - min) / (max - min)) * 100;
+    const pMax = ((tightMax - min) / (max - min)) * 100;
+    
+    eSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
+  }
+
+  function updateKScale() {
+    if (!tissueTypeSelect || !toolTypeSelect || !kSlider) return;
+    const selectedTissue = tissueTypeSelect.value;
+    const cfg = tissueConfig[selectedTissue];
+    const selectedTool = toolTypeSelect.value;
+    const toolCfg = toolConfig[selectedTool];
+    if (!cfg || !toolCfg) return;
+    
+    let kMinScale = 0;
+    let kMaxScale = 500;
+    
+    if (toolCfg.group === "A") {
+      const aMin = parseFloat(contactRadiusSlider.min) / 1000;
+      const aMax = parseFloat(contactRadiusSlider.max) / 1000;
+      const EMin = cfg.E_full[0] * 1000;
+      const EMax = cfg.E_full[1] * 1000;
+      const nuMin = cfg.nu.min;
+      const nuMax = cfg.nu.max;
+      
+      kMinScale = (2 * aMin * EMin) / (1 - nuMin * nuMin);
+      kMaxScale = (2 * aMax * EMax) / (1 - nuMax * nuMax);
+    } else {
+      const EMin = cfg.E_full[0] * 1000;
+      const EMax = cfg.E_full[1] * 1000;
+      const AMin = parseFloat(jawAreaSlider.min) * 1e-6;
+      const AMax = parseFloat(jawAreaSlider.max) * 1e-6;
+      const hMin = parseFloat(thicknessSlider.min) / 1000;
+      const hMax = parseFloat(thicknessSlider.max) / 1000;
+      
+      kMinScale = (EMin * AMin) / hMax;
+      kMaxScale = (EMax * AMax) / hMin;
+    }
+    
+    kSlider.min = kMinScale.toFixed(2);
+    kSlider.max = kMaxScale.toFixed(2);
+  }
+
   function handleTissueChange() {
-    if (!tissueTypeSelect || !nuSlider) return;
+    if (!tissueTypeSelect) return;
     const selected = tissueTypeSelect.value;
-    const cfg = tissueNuConfig[selected];
+    const cfg = tissueConfig[selected];
     if (cfg) {
-      nuSlider.min = cfg.min;
-      nuSlider.max = cfg.max;
-      nuSlider.step = cfg.step;
-      if (nuInput) {
-        nuInput.min = cfg.min;
-        nuInput.max = cfg.max;
-        nuInput.step = cfg.step;
+      if (nuSlider) {
+        nuSlider.min = cfg.nu.min;
+        nuSlider.max = cfg.nu.max;
+        nuSlider.step = cfg.nu.step;
+        nuSlider.value = cfg.nu.default;
+        if (nuInput) {
+          nuInput.min = cfg.nu.min;
+          nuInput.max = cfg.nu.max;
+          nuInput.step = cfg.nu.step;
+          nuInput.value = cfg.nu.default;
+        }
+        if (nuVal) {
+          nuVal.textContent = cfg.nu.default.toFixed(2);
+        }
       }
       
-      nuSlider.value = cfg.default;
-      if (nuInput) {
-        nuInput.value = cfg.default;
+      if (eSlider) {
+        eSlider.min = cfg.E_full[0];
+        eSlider.max = cfg.E_full[1];
+        eSlider.step = "0.05";
+        const defaultE = (cfg.E_tight[0] + cfg.E_tight[1]) / 2;
+        eSlider.value = defaultE;
+        if (eInput) {
+          eInput.min = cfg.E_full[0];
+          eInput.max = cfg.E_full[1];
+          eInput.step = "0.05";
+          eInput.value = defaultE;
+        }
+        if (eVal) {
+          eVal.textContent = defaultE.toFixed(2);
+        }
+        updateESliderBackground(cfg);
       }
-      if (nuVal) {
-        nuVal.textContent = cfg.default.toFixed(2);
+
+      if (cSlider) {
+        cSlider.min = cfg.c_full[0];
+        cSlider.max = cfg.c_full[1];
+        cSlider.step = "0.1";
+        const defaultC = (cfg.c_tight[0] + cfg.c_tight[1]) / 2;
+        cSlider.value = defaultC;
+        if (cInput) {
+          cInput.min = cfg.c_full[0];
+          cInput.max = cfg.c_full[1];
+          cInput.step = "0.1";
+          cInput.value = defaultC;
+        }
+        if (cVal) {
+          cVal.textContent = defaultC.toFixed(1);
+        }
       }
-      
-      if (nuNote) {
-        nuNote.style.display = cfg.showNote ? "block" : "none";
-        nuNote.open = false; // Reset to collapsed/closed state when tissue type changes
+
+      if (eCaption) {
+        eCaption.textContent = `Shaded area = typical range (elastography/indentation) for ${cfg.name}; full range includes method-dependent outliers. Method priority: ${cfg.priority}.`;
       }
     }
+    updateKScale();
     update();
   }
 
@@ -143,6 +253,7 @@ export function initPhysicsTab() {
     const cfg = toolConfig[selected];
     if (cfg) {
       if (cfg.group === "A") {
+        if (nuSliderRow) nuSliderRow.style.display = "block";
         if (groupAControls) groupAControls.style.display = "block";
         if (groupBControls) groupBControls.style.display = "none";
         
@@ -165,6 +276,7 @@ export function initPhysicsTab() {
           contactRadiusNote.style.display = cfg.showNote ? "block" : "none";
         }
       } else if (cfg.group === "B") {
+        if (nuSliderRow) nuSliderRow.style.display = "none";
         if (groupAControls) groupAControls.style.display = "none";
         if (groupBControls) groupBControls.style.display = "block";
         
@@ -201,6 +313,7 @@ export function initPhysicsTab() {
         }
       }
     }
+    updateKScale();
     update();
   }
 
@@ -212,7 +325,8 @@ export function initPhysicsTab() {
     { slider: nuSlider, input: nuInput },
     { slider: contactRadiusSlider, input: contactRadiusInput },
     { slider: jawAreaSlider, input: jawAreaInput },
-    { slider: thicknessSlider, input: thicknessInput }
+    { slider: thicknessSlider, input: thicknessInput },
+    { slider: eSlider, input: eInput }
   ];
 
   inputs.forEach(({ slider, input }) => {
@@ -223,7 +337,62 @@ export function initPhysicsTab() {
   });
 
   function update() {
-    const k = parseFloat(kSlider.value);
+    const selectedTissue = tissueTypeSelect.value;
+    const cfg = tissueConfig[selectedTissue];
+    const selectedTool = toolTypeSelect.value;
+    const toolCfg = toolConfig[selectedTool];
+    if (!cfg || !toolCfg) return;
+    
+    let k = 0;
+    let kCalculationText = "";
+    
+    const E_kPa = parseFloat(eSlider.value);
+    const E_Pa = E_kPa * 1000;
+    
+    if (toolCfg.group === "A") {
+      const a_mm = parseFloat(contactRadiusSlider.value);
+      const a_m = a_mm / 1000;
+      const nu = parseFloat(nuSlider.value);
+      
+      const numerator = 2 * a_m * E_Pa;
+      const denominator = 1 - nu * nu;
+      k = numerator / denominator;
+      
+      kCalculationText = `Formula: k = 2aE / (1 − ν²)
+a = ${a_mm.toFixed(2)} mm → ${a_m.toFixed(5)} m
+E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
+ν = ${nu.toFixed(2)}
+k = 2 × ${a_m.toFixed(5)} × ${E_Pa.toFixed(0)} / (1 − ${nu.toFixed(2)}²)
+k = ${numerator.toFixed(4)} / ${denominator.toFixed(4)} ≈ ${k.toFixed(1)} N/m`;
+    } else {
+      const A_mm2 = parseFloat(jawAreaSlider.value);
+      const A_m2 = A_mm2 * 1e-6;
+      const h_mm = parseFloat(thicknessSlider.value);
+      const h_m = h_mm / 1000;
+      
+      k = (E_Pa * A_m2) / h_m;
+      
+      kCalculationText = `Formula: k = E·A / h
+E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
+A = ${A_mm2.toFixed(0)} mm² → ${A_m2.toString()} m²
+h = ${h_mm.toFixed(1)} mm → ${h_m.toFixed(4)} m
+k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed(1)} N/m`;
+    }
+    
+    kSlider.value = k;
+    if (kInput) kInput.value = k.toFixed(1);
+    if (kVal) kVal.textContent = k.toFixed(1);
+    
+    const kMin = parseFloat(kSlider.min) || 0;
+    const kMax = parseFloat(kSlider.max) || 500;
+    const kPct = Math.min(100, Math.max(0, ((k - kMin) / (kMax - kMin)) * 100));
+    kSlider.style.setProperty('--fill-pct', `${kPct}%`);
+    
+    const kCalcSteps = document.getElementById("kCalcSteps");
+    if (kCalcSteps) {
+      kCalcSteps.textContent = kCalculationText;
+    }
+    
     const c = parseFloat(cSlider.value);
     const x = parseFloat(xSlider.value);
     const v = parseFloat(vSlider.value);
@@ -231,27 +400,27 @@ export function initPhysicsTab() {
     const rampMin = parseFloat(rampMinSlider.value);
     const rampMax = parseFloat(rampMaxSlider.value);
     
-    kVal.textContent = k;
-    cVal.textContent = c;
+    cVal.textContent = c.toFixed(1);
     xVal.textContent = x.toFixed(1);
     holdVal.textContent = holdDuration.toFixed(1);
     rampMinVal.textContent = rampMin.toFixed(2);
     rampMaxVal.textContent = rampMax.toFixed(1);
 
-    if (kInput && document.activeElement !== kInput) kInput.value = k;
     if (cInput && document.activeElement !== cInput) cInput.value = c;
     if (xInput && document.activeElement !== xInput) xInput.value = x.toFixed(1);
     if (vInput && document.activeElement !== vInput) vInput.value = v.toFixed(1);
+
+    // E slider sync
+    if (eSlider && eVal) {
+      eVal.textContent = E_kPa.toFixed(2);
+      if (eInput && document.activeElement !== eInput) eInput.value = E_kPa.toFixed(2);
+    }
 
     // Poisson's ratio (nu) updates
     if (nuSlider && nuVal) {
       const nu = parseFloat(nuSlider.value);
       nuVal.textContent = nu.toFixed(2);
       if (nuInput && document.activeElement !== nuInput) nuInput.value = nu.toFixed(2);
-      
-      // TODO: Reserved for future k/c coupling. 
-      // ν (Poisson's ratio) will be used to adjust stiffness (k) and damping (c) ranges in a future update.
-      // For now, it exists as an independent, storable UI parameter only.
     }
 
     // Tool contact parameter updates
@@ -297,30 +466,45 @@ export function initPhysicsTab() {
       vVal.innerHTML = `${v.toFixed(1)} &rarr; <span style="color:#B06A18; font-weight:700;">${v_effective.toFixed(1)} (adjusted)</span>`;
     }
 
-    // Uncertainty (illustrative bootstrap CI width from physics.js)
-    const { ciKWidth, ciCWidth } = calculateUncertainty(k, c);
+    // Uncertainty propagation from E to k
+    const { ciEWidth, ciCWidth } = calculateUncertainty(E_kPa, c);
+    
+    let kMinCI, kMaxCI;
+    if (toolCfg.group === "A") {
+      const a_m = parseFloat(contactRadiusSlider.value) / 1000;
+      const nu = parseFloat(nuSlider.value);
+      kMinCI = 2 * a_m * ((E_kPa - ciEWidth) * 1000) / (1 - nu * nu);
+      kMaxCI = 2 * a_m * ((E_kPa + ciEWidth) * 1000) / (1 - nu * nu);
+    } else {
+      const A_m2 = parseFloat(jawAreaSlider.value) * 1e-6;
+      const h_m = parseFloat(thicknessSlider.value) / 1000;
+      kMinCI = ((E_kPa - ciEWidth) * 1000) * A_m2 / h_m;
+      kMaxCI = ((E_kPa + ciEWidth) * 1000) * A_m2 / h_m;
+    }
     
     const ciKLabel = document.getElementById("ciKLabel");
     const ciCLabel = document.getElementById("ciCLabel");
-    if (ciKLabel) ciKLabel.textContent = `${k} ± ${ciKWidth.toFixed(1)} N/m`;
-    if (ciCLabel) ciCLabel.textContent = `${c} ± ${ciCWidth.toFixed(1)} Ns/m`;
+    if (ciKLabel) {
+      ciKLabel.innerHTML = `E = ${E_kPa.toFixed(1)} &plusmn; ${ciEWidth.toFixed(1)} kPa | k &approx; ${k.toFixed(1)} N/m (range: ${kMinCI.toFixed(1)}&ndash;${kMaxCI.toFixed(1)} N/m)`;
+    }
+    if (ciCLabel) {
+      ciCLabel.textContent = `${c.toFixed(1)} ± ${ciCWidth.toFixed(1)} Ns/m`;
+    }
 
     // Map CI widths onto slider min/max ranges as percentages for DOM positioning
-    const kMin = parseFloat(kSlider.min) || 10;
-    const kMax = parseFloat(kSlider.max) || 500;
+    const ciKStart = Math.max(kMin, kMinCI);
+    const ciKEnd = Math.min(kMax, kMaxCI);
     const kRange = kMax - kMin;
-    const ciKStart = Math.max(kMin, k - ciKWidth);
-    const ciKEnd = Math.min(kMax, k + ciKWidth);
-    const ciKLeft = ((ciKStart - kMin) / kRange) * 100;
-    const ciKWidthPct = ((ciKEnd - ciKStart) / kRange) * 100;
+    const ciKLeft = kRange > 0 ? ((ciKStart - kMin) / kRange) * 100 : 0;
+    const ciKWidthPct = kRange > 0 ? ((ciKEnd - ciKStart) / kRange) * 100 : 0;
 
     const cMin = parseFloat(cSlider.min) || 0;
     const cMax = parseFloat(cSlider.max) || 50;
     const cRange = cMax - cMin;
     const ciCStart = Math.max(cMin, c - ciCWidth);
     const ciCEnd = Math.min(cMax, c + ciCWidth);
-    const ciCLeft = ((ciCStart - cMin) / cRange) * 100;
-    const ciCWidthPct = ((ciCEnd - ciCStart) / cRange) * 100;
+    const ciCLeft = cRange > 0 ? ((ciCStart - cMin) / cRange) * 100 : 0;
+    const ciCWidthPct = cRange > 0 ? ((ciCEnd - ciCStart) / cRange) * 100 : 0;
 
     const ciKEl = document.getElementById("ciK");
     const ciCEl = document.getElementById("ciC");
@@ -366,7 +550,7 @@ export function initPhysicsTab() {
           <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
           <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
           <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
-            F = (${k} N/m &middot; ${x_m.toFixed(4)} m) + (${c} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
+            F = (${k.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(1)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
@@ -398,7 +582,7 @@ export function initPhysicsTab() {
 
   [
     kSlider, cSlider, xSlider, vSlider, holdSlider, rampMinSlider, rampMaxSlider,
-    nuSlider, contactRadiusSlider, jawAreaSlider, thicknessSlider
+    nuSlider, contactRadiusSlider, jawAreaSlider, thicknessSlider, eSlider
   ].forEach(s => {
     if (s) s.addEventListener("input", update);
   });
