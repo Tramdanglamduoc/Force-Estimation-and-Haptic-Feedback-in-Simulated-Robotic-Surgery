@@ -453,8 +453,9 @@ export function initPhysicsTab() {
 
     // Get current values
     const currentE_kPa = parseFloat(eSlider.value);
-    const currentCMat = parseFloat(cMaterialSlider.value);
-    const currentC = parseFloat(cSlider.value);
+    const currentCMat_kPa_s = parseFloat(cMaterialSlider.value);
+    const currentCMat_Pa_s = currentCMat_kPa_s * 1000;
+    const currentCMat = currentCMat_kPa_s;
     const currentX = parseFloat(xSlider.value);
     const currentV = parseFloat(vSlider.value);
     const currentHold = parseFloat(holdSlider.value);
@@ -480,6 +481,19 @@ export function initPhysicsTab() {
       h_mm = parseFloat(thicknessSlider.value);
       const h_m = h_mm / 1000;
       currentK = (E_Pa * A_m2) / h_m;
+    }
+
+    // Current deterministic lumped c
+    let currentC = 0;
+    if (toolCfg.group === "A") {
+      const a_m = a_mm / 1000;
+      const L_mm = parseFloat(lSlider.value);
+      const L_m = L_mm / 1000;
+      currentC = (currentCMat_Pa_s * Math.PI * a_m * a_m) / L_m;
+    } else {
+      const A_m2 = A_mm2 * 1e-6;
+      const h_m = h_mm / 1000;
+      currentC = (currentCMat_Pa_s * A_m2) / h_m;
     }
 
     // Step 1: Generate synthetic noisy data using 5% relative SD
@@ -510,13 +524,13 @@ export function initPhysicsTab() {
       const a_m = a_mm / 1000;
       const L_mm = parseFloat(lSlider.value);
       const L_m = L_mm / 1000;
-      cMat_min = cMinCI * L_m / (Math.PI * a_m * a_m);
-      cMat_max = cMaxCI * L_m / (Math.PI * a_m * a_m);
+      cMat_min = (cMinCI * L_m / (Math.PI * a_m * a_m)) / 1000;
+      cMat_max = (cMaxCI * L_m / (Math.PI * a_m * a_m)) / 1000;
     } else {
       const A_m2 = A_mm2 * 1e-6;
       const h_m = h_mm / 1000;
-      cMat_min = cMinCI * h_m / A_m2;
-      cMat_max = cMaxCI * h_m / A_m2;
+      cMat_min = (cMinCI * h_m / A_m2) / 1000;
+      cMat_max = (cMaxCI * h_m / A_m2) / 1000;
     }
 
     // Update labels
@@ -534,7 +548,7 @@ export function initPhysicsTab() {
     }
     const halfCMat = (cMat_max - cMat_min) / 2;
     if (ciCMaterialLabel) {
-      ciCMaterialLabel.textContent = `c_mat = ${currentCMat.toFixed(1)} ± ${halfCMat.toFixed(1)} Pa·s`;
+      ciCMaterialLabel.textContent = `c_mat = ${currentCMat.toFixed(1)} ± ${halfCMat.toFixed(1)} kPa·s`;
     }
     if (ciCLumpedLabel) {
       ciCLumpedLabel.innerHTML = `c &approx; ${currentC.toFixed(2)} Ns/m (range: ${cMinCI.toFixed(2)}&ndash;${cMaxCI.toFixed(2)} Ns/m)`;
@@ -694,7 +708,8 @@ k = ${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)} ≈ ${k.toFixed(1)} N/m`;
     // c_lumped calculation based on c_material and tool geometry
     let c = 0;
     let cCalculationText = "";
-    const cMaterial = parseFloat(cMaterialSlider.value);
+    const cMaterial_kPa_s = parseFloat(cMaterialSlider.value);
+    const cMaterial_Pa_s = cMaterial_kPa_s * 1000;
     
     if (toolCfg.group === "A") {
       const a_mm = parseFloat(contactRadiusSlider.value);
@@ -702,11 +717,11 @@ k = ${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)} ≈ ${k.toFixed(1)} N/m`;
       const L_mm = parseFloat(lSlider.value);
       const L_m = L_mm / 1000;
       
-      const numeratorC = cMaterial * Math.PI * a_m * a_m;
+      const numeratorC = cMaterial_Pa_s * Math.PI * a_m * a_m;
       c = numeratorC / L_m;
       
       cCalculationText = `Formula: c_lumped = c_material × π·a² / L
-c_lumped = ${cMaterial.toFixed(1)} × π × ${fmt(a_m)}² / ${fmt(L_m)}
+c_lumped = ${cMaterial_kPa_s.toFixed(1)} kPa·s (converted to ${cMaterial_Pa_s.toFixed(0)} Pa·s) × π × ${fmt(a_m)}² / ${fmt(L_m)}
 c_lumped = ${fmt(numeratorC)} / ${fmt(L_m)} ≈ ${c.toFixed(2)} Ns/m`;
     } else {
       const A_mm2 = parseFloat(jawAreaSlider.value);
@@ -714,11 +729,11 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(L_m)} ≈ ${c.toFixed(2)} Ns/m`;
       const h_mm = parseFloat(thicknessSlider.value);
       const h_m = h_mm / 1000;
       
-      const numeratorC = cMaterial * A_m2;
+      const numeratorC = cMaterial_Pa_s * A_m2;
       c = numeratorC / h_m;
       
       cCalculationText = `Formula: c_lumped = c_material × A / h
-c_lumped = ${cMaterial.toFixed(1)} × ${fmt(A_m2)} / ${fmt(h_m)}
+c_lumped = ${cMaterial_kPa_s.toFixed(1)} kPa·s (converted to ${cMaterial_Pa_s.toFixed(0)} Pa·s) × ${fmt(A_m2)} / ${fmt(h_m)}
 c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
     }
 
@@ -877,6 +892,7 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
 
     // Console verification
     console.log("fElastic:", fElastic.toFixed(4), "N, fViscous:", fViscous.toFixed(4), "N, total:", total.toFixed(4), "N");
+    console.log(`Sanity Check - Tissue: ${selectedTissue}, Tool: ${selectedTool}, Elastic: ${pElastic}%, Viscous: ${pViscous}%`);
 
     // Retrieve Monte Carlo state
     const mcToggle = document.getElementById("mcToggle");
