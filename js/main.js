@@ -76,10 +76,20 @@ export function initPhysicsTab() {
   const eVal = document.getElementById("eVal");
   const eCaption = document.getElementById("eCaption");
 
+  const cMaterialSlider = document.getElementById("cMaterialSlider");
+  const cMaterialInput = document.getElementById("cMaterialInput");
+  const cMaterialVal = document.getElementById("cMaterialVal");
+  const cMaterialTooltip = document.getElementById("cMaterialTooltip");
+
   const contactRadiusSlider = document.getElementById("contactRadiusSlider");
   const contactRadiusInput = document.getElementById("contactRadiusInput");
   const contactRadiusVal = document.getElementById("contactRadiusVal");
   const contactRadiusNote = document.getElementById("contactRadiusNote");
+
+  const lSlider = document.getElementById("lSlider");
+  const lInput = document.getElementById("lInput");
+  const lVal = document.getElementById("lVal");
+  const lCaption = document.getElementById("lCaption");
 
   const jawAreaSlider = document.getElementById("jawAreaSlider");
   const jawAreaInput = document.getElementById("jawAreaInput");
@@ -102,7 +112,7 @@ export function initPhysicsTab() {
       name: "Liver (excluding capsule)",
       E_full: [1.0, 4.0],
       E_tight: [1.0, 3.0],
-      c_full: [2.0, 10.0],
+      c_main: [2.0, 10.0],
       c_tight: [2.0, 6.0],
       nu: { min: 0.30, max: 0.45, default: 0.42, step: 0.01 },
       priority: "in vivo > in situ > ex vivo"
@@ -111,7 +121,7 @@ export function initPhysicsTab() {
       name: "Kidney (parenchyma, excluding capsule)",
       E_full: [1.0, 5.0],
       E_tight: [1.0, 3.0],
-      c_full: [2.0, 10.0],
+      c_main: [2.0, 10.0],
       c_tight: [2.0, 6.0],
       nu: { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
       priority: "in vivo > in situ > ex vivo"
@@ -120,7 +130,7 @@ export function initPhysicsTab() {
       name: "Spleen (parenchyma, excluding capsule)",
       E_full: [1.0, 4.0],
       E_tight: [1.5, 3.0],
-      c_full: [2.0, 8.0],
+      c_main: [2.0, 8.0],
       c_tight: [2.0, 5.0],
       nu: { min: 0.47, max: 0.49, default: 0.48, step: 0.01 },
       priority: "in vivo > in situ > ex vivo"
@@ -128,10 +138,10 @@ export function initPhysicsTab() {
   };
 
   const toolConfig = {
-    "Needle tip": { group: "A", min: 0.29, max: 0.65, default: 0.29, step: 0.01 },
-    "Blunt palpation probe": { group: "A", min: 2.5, max: 5.0, default: 2.5, step: 0.1 },
-    "Monopolar hook/spatula": { group: "A", min: 0.3, max: 0.8, default: 0.3, step: 0.01, showNote: true },
-    "Suction/irrigation cannula tip": { group: "A", min: 1.5, max: 5.0, default: 1.5, step: 0.1 },
+    "Needle tip": { group: "A", min: 0.29, max: 0.65, default: 0.29, step: 0.01, minL: 0.5, maxL: 5.0, defaultL: 2.0, stepL: 0.1 },
+    "Blunt palpation probe": { group: "A", min: 2.5, max: 5.0, default: 2.5, step: 0.1, minL: 1.0, maxL: 10.0, defaultL: 5.0, stepL: 0.1 },
+    "Monopolar hook/spatula": { group: "A", min: 0.3, max: 0.8, default: 0.3, step: 0.01, showNote: true, minL: 0.5, maxL: 3.0, defaultL: 1.5, stepL: 0.1 },
+    "Suction/irrigation cannula tip": { group: "A", min: 1.5, max: 5.0, default: 1.5, step: 0.1, minL: 0.5, maxL: 2.0, defaultL: 1.0, stepL: 0.1 },
     "Flat grasper": { group: "B", minA: 100, maxA: 250, defaultA: 100, stepA: 1, minH: 3, maxH: 15, defaultH: 3, stepH: 0.1 },
     "Grasping forceps/bipolar forceps": { group: "B", minA: 100, maxA: 250, defaultA: 100, stepA: 1, minH: 3, maxH: 15, defaultH: 3, stepH: 0.1 }
   };
@@ -149,17 +159,30 @@ export function initPhysicsTab() {
     eSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
   }
 
-  function updateCSliderBackground(cfg) {
-    if (!cSlider) return;
-    const min = cfg.c_full[0];
-    const max = cfg.c_full[1];
+  function updateCMaterialSliderBackground(cfg) {
+    if (!cMaterialSlider) return;
+    const min = cfg.c_main[0];
+    const max = cfg.c_main[1];
     const tightMin = cfg.c_tight[0];
     const tightMax = cfg.c_tight[1];
     
     const pMin = ((tightMin - min) / (max - min)) * 100;
     const pMax = ((tightMax - min) / (max - min)) * 100;
     
-    cSlider.style.setProperty('--track-background', `linear-gradient(to right, #EDF1F3 0%, #EDF1F3 ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, #EDF1F3 ${pMax}%, #EDF1F3 100%)`);
+    cMaterialSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(55, 138, 221, 0.4) ${pMin}%, rgba(55, 138, 221, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
+  }
+
+  function updateLSliderBackground(toolCfg) {
+    if (!lSlider) return;
+    const min = parseFloat(lSlider.min);
+    const max = parseFloat(lSlider.max);
+    const tightMin = toolCfg.minL;
+    const tightMax = toolCfg.maxL;
+    
+    const pMin = ((tightMin - min) / (max - min)) * 100;
+    const pMax = ((tightMax - min) / (max - min)) * 100;
+    
+    lSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
   }
 
   function updateKScale() {
@@ -197,6 +220,43 @@ export function initPhysicsTab() {
     
     kSlider.min = kMinScale.toFixed(2);
     kSlider.max = kMaxScale.toFixed(2);
+  }
+
+  function updateCScale() {
+    if (!tissueTypeSelect || !toolTypeSelect || !cSlider) return;
+    const selectedTissue = tissueTypeSelect.value;
+    const cfg = tissueConfig[selectedTissue];
+    const selectedTool = toolTypeSelect.value;
+    const toolCfg = toolConfig[selectedTool];
+    if (!cfg || !toolCfg) return;
+    
+    let cMinScale = 0;
+    let cMaxScale = 100;
+    
+    if (toolCfg.group === "A") {
+      const aMin = parseFloat(contactRadiusSlider.min) / 1000;
+      const aMax = parseFloat(contactRadiusSlider.max) / 1000;
+      const cMin = cfg.c_main[0];
+      const cMax = cfg.c_main[1];
+      const lMin = parseFloat(lSlider.min) / 1000;
+      const lMax = parseFloat(lSlider.max) / 1000;
+      
+      cMinScale = (cMin * Math.PI * aMin * aMin) / lMax;
+      cMaxScale = (cMax * Math.PI * aMax * aMax) / lMin;
+    } else {
+      const cMin = cfg.c_main[0];
+      const cMax = cfg.c_main[1];
+      const AMin = parseFloat(jawAreaSlider.min) * 1e-6;
+      const AMax = parseFloat(jawAreaSlider.max) * 1e-6;
+      const hMin = parseFloat(thicknessSlider.min) / 1000;
+      const hMax = parseFloat(thicknessSlider.max) / 1000;
+      
+      cMinScale = (cMin * AMin) / hMax;
+      cMaxScale = (cMax * AMax) / hMin;
+    }
+    
+    cSlider.min = cMinScale.toFixed(2);
+    cSlider.max = cMaxScale.toFixed(2);
   }
 
   function handleTissueChange() {
@@ -238,22 +298,22 @@ export function initPhysicsTab() {
         updateESliderBackground(cfg);
       }
 
-      if (cSlider) {
-        cSlider.min = cfg.c_full[0];
-        cSlider.max = cfg.c_full[1];
-        cSlider.step = "0.1";
-        const defaultC = (cfg.c_tight[0] + cfg.c_tight[1]) / 2;
-        cSlider.value = defaultC;
-        if (cInput) {
-          cInput.min = cfg.c_full[0];
-          cInput.max = cfg.c_full[1];
-          cInput.step = "0.1";
-          cInput.value = defaultC;
+      if (cMaterialSlider) {
+        cMaterialSlider.min = cfg.c_main[0];
+        cMaterialSlider.max = cfg.c_main[1];
+        cMaterialSlider.step = "0.1";
+        const defaultCMat = (cfg.c_tight[0] + cfg.c_tight[1]) / 2;
+        cMaterialSlider.value = defaultCMat;
+        if (cMaterialInput) {
+          cMaterialInput.min = cfg.c_main[0];
+          cMaterialInput.max = cfg.c_main[1];
+          cMaterialInput.step = "0.1";
+          cMaterialInput.value = defaultCMat;
         }
-        if (cVal) {
-          cVal.textContent = defaultC.toFixed(1);
+        if (cMaterialVal) {
+          cMaterialVal.textContent = defaultCMat.toFixed(1);
         }
-        updateCSliderBackground(cfg);
+        updateCMaterialSliderBackground(cfg);
       }
 
       if (eCaption) {
@@ -264,12 +324,12 @@ export function initPhysicsTab() {
         eTooltip.innerHTML = `<strong>Tissue description:</strong> ${cfg.name}<br><strong>Method priority:</strong> ${cfg.priority}`;
       }
       
-      const cTooltip = document.getElementById("cTooltip");
-      if (cTooltip) {
-        cTooltip.innerHTML = `<strong>Tissue description:</strong> ${cfg.name}<br><strong>Method priority:</strong> ${cfg.priority}`;
+      if (cMaterialTooltip) {
+        cMaterialTooltip.innerHTML = `<strong>Tissue description:</strong> ${cfg.name}<br>c_material is a bulk/continuum-level material property, independent of tool geometry.<br><br>c_main: the full range reported across studies. c_tight: the recommended range, prioritized by method (${cfg.priority}).`;
       }
     }
     updateKScale();
+    updateCScale();
     update();
   }
 
@@ -301,6 +361,23 @@ export function initPhysicsTab() {
         if (contactRadiusNote) {
           contactRadiusNote.style.display = cfg.showNote ? "block" : "none";
         }
+
+        if (lSlider) {
+          lSlider.min = 0.5;
+          lSlider.max = 10.0;
+          lSlider.step = 0.1;
+          lSlider.value = cfg.defaultL;
+        }
+        if (lInput) {
+          lInput.min = 0.5;
+          lInput.max = 10.0;
+          lInput.step = 0.1;
+          lInput.value = cfg.defaultL;
+        }
+        if (lVal) {
+          lVal.textContent = cfg.defaultL.toFixed(1);
+        }
+        updateLSliderBackground(cfg);
       } else if (cfg.group === "B") {
         if (nuSliderRow) nuSliderRow.style.display = "none";
         if (groupAControls) groupAControls.style.display = "none";
@@ -340,6 +417,7 @@ export function initPhysicsTab() {
       }
     }
     updateKScale();
+    updateCScale();
     update();
   }
 
@@ -350,9 +428,11 @@ export function initPhysicsTab() {
     { slider: vSlider, input: vInput },
     { slider: nuSlider, input: nuInput },
     { slider: contactRadiusSlider, input: contactRadiusInput },
+    { slider: lSlider, input: lInput },
     { slider: jawAreaSlider, input: jawAreaInput },
     { slider: thicknessSlider, input: thicknessInput },
-    { slider: eSlider, input: eInput }
+    { slider: eSlider, input: eInput },
+    { slider: cMaterialSlider, input: cMaterialInput }
   ];
 
   inputs.forEach(({ slider, input }) => {
@@ -373,6 +453,7 @@ export function initPhysicsTab() {
 
     // Get current values
     const currentE_kPa = parseFloat(eSlider.value);
+    const currentCMat = parseFloat(cMaterialSlider.value);
     const currentC = parseFloat(cSlider.value);
     const currentX = parseFloat(xSlider.value);
     const currentV = parseFloat(vSlider.value);
@@ -422,10 +503,27 @@ export function initPhysicsTab() {
       E_max = kMaxCI * h_mm / A_mm2;
     }
 
+    // Back-derive Damping c_material confidence interval
+    let cMat_min = 0;
+    let cMat_max = 0;
+    if (toolCfg.group === "A") {
+      const a_m = a_mm / 1000;
+      const L_mm = parseFloat(lSlider.value);
+      const L_m = L_mm / 1000;
+      cMat_min = cMinCI * L_m / (Math.PI * a_m * a_m);
+      cMat_max = cMaxCI * L_m / (Math.PI * a_m * a_m);
+    } else {
+      const A_m2 = A_mm2 * 1e-6;
+      const h_m = h_mm / 1000;
+      cMat_min = cMinCI * h_m / A_m2;
+      cMat_max = cMaxCI * h_m / A_m2;
+    }
+
     // Update labels
     const ciELabel = document.getElementById("ciELabel");
     const ciKLabel = document.getElementById("ciKLabel");
-    const ciCLabel = document.getElementById("ciCLabel");
+    const ciCMaterialLabel = document.getElementById("ciCMaterialLabel");
+    const ciCLumpedLabel = document.getElementById("ciCLumpedLabel");
 
     const halfE = (E_max - E_min) / 2;
     if (ciELabel) {
@@ -434,15 +532,19 @@ export function initPhysicsTab() {
     if (ciKLabel) {
       ciKLabel.innerHTML = `k &approx; ${currentK.toFixed(1)} N/m (range: ${kMinCI.toFixed(1)}&ndash;${kMaxCI.toFixed(1)} N/m)`;
     }
-    const halfC = (cMaxCI - cMinCI) / 2;
-    if (ciCLabel) {
-      ciCLabel.textContent = `c = ${currentC.toFixed(1)} ± ${halfC.toFixed(1)} Ns/m`;
+    const halfCMat = (cMat_max - cMat_min) / 2;
+    if (ciCMaterialLabel) {
+      ciCMaterialLabel.textContent = `c_mat = ${currentCMat.toFixed(1)} ± ${halfCMat.toFixed(1)} Pa·s`;
+    }
+    if (ciCLumpedLabel) {
+      ciCLumpedLabel.innerHTML = `c &approx; ${currentC.toFixed(2)} Ns/m (range: ${cMinCI.toFixed(2)}&ndash;${cMaxCI.toFixed(2)} Ns/m)`;
     }
 
     // Update bars scaled relative to bootstrap interval itself
     const ciEEl = document.getElementById("ciE");
     const ciKEl = document.getElementById("ciK");
-    const ciCEl = document.getElementById("ciC");
+    const ciCMaterialEl = document.getElementById("ciCMaterial");
+    const ciCLumpedEl = document.getElementById("ciCLumped");
 
     if (ciEEl) {
       const diffE = E_max - E_min;
@@ -456,11 +558,17 @@ export function initPhysicsTab() {
       ciKEl.style.left = "0%";
       ciKEl.style.width = Math.min(100, Math.max(0, pctK)) + "%";
     }
-    if (ciCEl) {
-      const diffC = cMaxCI - cMinCI;
-      const pctC = diffC > 0 ? ((currentC - cMinCI) / diffC) * 100 : 50;
-      ciCEl.style.left = "0%";
-      ciCEl.style.width = Math.min(100, Math.max(0, pctC)) + "%";
+    if (ciCMaterialEl) {
+      const diffCMat = cMat_max - cMat_min;
+      const pctCMat = diffCMat > 0 ? ((currentCMat - cMat_min) / diffCMat) * 100 : 50;
+      ciCMaterialEl.style.left = "0%";
+      ciCMaterialEl.style.width = Math.min(100, Math.max(0, pctCMat)) + "%";
+    }
+    if (ciCLumpedEl) {
+      const diffCLump = cMaxCI - cMinCI;
+      const pctCLump = diffCLump > 0 ? ((currentC - cMinCI) / diffCLump) * 100 : 50;
+      ciCLumpedEl.style.left = "0%";
+      ciCLumpedEl.style.width = Math.min(100, Math.max(0, pctCLump)) + "%";
     }
 
     // Update elastic/viscous decomposition ± standard deviation if Monte Carlo is ON
@@ -536,6 +644,9 @@ export function initPhysicsTab() {
     const toolCfg = toolConfig[selectedTool];
     if (!cfg || !toolCfg) return;
     
+    // Helper to format values cleanly and bypass floating-point rounding noise
+    const fmt = (v) => parseFloat(v.toFixed(10));
+    
     let k = 0;
     let kCalculationText = "";
     
@@ -552,11 +663,11 @@ export function initPhysicsTab() {
       k = numerator / denominator;
       
       kCalculationText = `Formula: k = 2aE / (1 − ν²)
-a = ${a_mm.toFixed(2)} mm → ${a_m.toFixed(5)} m
+a = ${a_mm.toFixed(2)} mm → ${fmt(a_m)} m
 E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
 ν = ${nu.toFixed(2)}
-k = 2 × ${a_m.toFixed(5)} × ${E_Pa.toFixed(0)} / (1 − ${nu.toFixed(2)}²)
-k = ${numerator.toFixed(4)} / ${denominator.toFixed(4)} ≈ ${k.toFixed(1)} N/m
+k = 2 × ${fmt(a_m)} × ${E_Pa.toFixed(0)} / (1 − ${nu.toFixed(2)}²)
+k = ${fmt(numerator)} / ${fmt(denominator)} ≈ ${k.toFixed(1)} N/m
 
 This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
     } else {
@@ -569,9 +680,9 @@ This calculation uses your current slider values exactly (not affected by Monte 
       
       kCalculationText = `Formula: k = E·A / h
 E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
-A = ${A_mm2.toFixed(0)} mm² → ${A_m2.toString()} m²
-h = ${h_mm.toFixed(1)} mm → ${h_m.toFixed(4)} m
-k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed(1)} N/m
+A = ${A_mm2.toFixed(0)} mm² → ${fmt(A_m2)} m²
+h = ${h_mm.toFixed(1)} mm → ${fmt(h_m)} m
+k = ${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)} ≈ ${k.toFixed(1)} N/m
 
 This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
     }
@@ -590,20 +701,72 @@ This calculation uses your current slider values exactly (not affected by Monte 
       kCalcSteps.textContent = kCalculationText;
     }
     
-    const c = parseFloat(cSlider.value);
+    // c_lumped calculation based on c_material and tool geometry
+    let c = 0;
+    let cCalculationText = "";
+    const cMaterial = parseFloat(cMaterialSlider.value);
+    
+    if (toolCfg.group === "A") {
+      const a_mm = parseFloat(contactRadiusSlider.value);
+      const a_m = a_mm / 1000;
+      const L_mm = parseFloat(lSlider.value);
+      const L_m = L_mm / 1000;
+      
+      const numeratorC = cMaterial * Math.PI * a_m * a_m;
+      c = numeratorC / L_m;
+      
+      cCalculationText = `Formula: c_lumped = c_material × π·a² / L
+c_material = ${cMaterial.toFixed(1)} Pa·s
+a = ${a_mm.toFixed(2)} mm → ${fmt(a_m)} m
+L = ${L_mm.toFixed(1)} mm → ${fmt(L_m)} m
+c_lumped = ${cMaterial.toFixed(1)} × π × ${fmt(a_m)}² / ${fmt(L_m)}
+c_lumped = ${fmt(numeratorC)} / ${fmt(L_m)} ≈ ${c.toFixed(2)} Ns/m
+
+This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
+    } else {
+      const A_mm2 = parseFloat(jawAreaSlider.value);
+      const A_m2 = A_mm2 * 1e-6;
+      const h_mm = parseFloat(thicknessSlider.value);
+      const h_m = h_mm / 1000;
+      
+      const numeratorC = cMaterial * A_m2;
+      c = numeratorC / h_m;
+      
+      cCalculationText = `Formula: c_lumped = c_material × A / h
+c_material = ${cMaterial.toFixed(1)} Pa·s
+A = ${A_mm2.toFixed(0)} mm² → ${fmt(A_m2)} m²
+h = ${h_mm.toFixed(1)} mm → ${fmt(h_m)} m
+c_lumped = ${cMaterial.toFixed(1)} × ${fmt(A_m2)} / ${fmt(h_m)}
+c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m
+
+This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
+    }
+
+    cSlider.value = c;
+    if (cInput) cInput.value = c.toFixed(2);
+    if (cVal) cVal.textContent = c.toFixed(2);
+    
+    const cMin = parseFloat(cSlider.min) || 0;
+    const cMax = parseFloat(cSlider.max) || 100;
+    const cPct = Math.min(100, Math.max(0, ((c - cMin) / (cMax - cMin)) * 100));
+    cSlider.style.setProperty('--fill-pct', `${cPct}%`);
+    
+    const cCalcSteps = document.getElementById("cCalcSteps");
+    if (cCalcSteps) {
+      cCalcSteps.textContent = cCalculationText;
+    }
+    
     const x = parseFloat(xSlider.value);
     const v = parseFloat(vSlider.value);
     const holdDuration = parseFloat(holdSlider.value);
     const rampMin = parseFloat(rampMinSlider.value);
     const rampMax = parseFloat(rampMaxSlider.value);
     
-    cVal.textContent = c.toFixed(1);
     xVal.textContent = x.toFixed(1);
     holdVal.textContent = holdDuration.toFixed(1);
     rampMinVal.textContent = rampMin.toFixed(2);
     rampMaxVal.textContent = rampMax.toFixed(1);
 
-    if (cInput && document.activeElement !== cInput) cInput.value = c;
     if (xInput && document.activeElement !== xInput) xInput.value = x.toFixed(1);
     if (vInput && document.activeElement !== vInput) vInput.value = v.toFixed(1);
 
@@ -611,6 +774,12 @@ This calculation uses your current slider values exactly (not affected by Monte 
     if (eSlider && eVal) {
       eVal.textContent = E_kPa.toFixed(2);
       if (eInput && document.activeElement !== eInput) eInput.value = E_kPa.toFixed(2);
+    }
+
+    // c_material slider sync
+    if (cMaterialSlider && cMaterialVal) {
+      cMaterialVal.textContent = cMaterial.toFixed(1);
+      if (cMaterialInput && document.activeElement !== cMaterialInput) cMaterialInput.value = cMaterial.toFixed(1);
     }
 
     // Poisson's ratio (nu) updates
@@ -631,6 +800,13 @@ This calculation uses your current slider values exactly (not affected by Monte 
             contactRadiusVal.textContent = a.toFixed(2);
             if (contactRadiusInput && document.activeElement !== contactRadiusInput) {
               contactRadiusInput.value = a.toFixed(2);
+            }
+          }
+          if (lSlider && lVal) {
+            const l_val = parseFloat(lSlider.value);
+            lVal.textContent = l_val.toFixed(1);
+            if (lInput && document.activeElement !== lInput) {
+              lInput.value = l_val.toFixed(1);
             }
           }
         } else if (cfg.group === "B") {
@@ -696,7 +872,7 @@ This calculation uses your current slider values exactly (not affected by Monte 
           <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
           <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
           <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
-            F = (${k.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(1)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
+            F = (${k.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
@@ -739,7 +915,7 @@ This calculation uses your current slider values exactly (not affected by Monte 
 
   [
     kSlider, cSlider, xSlider, vSlider, holdSlider, rampMinSlider, rampMaxSlider,
-    nuSlider, contactRadiusSlider, jawAreaSlider, thicknessSlider, eSlider
+    nuSlider, contactRadiusSlider, lSlider, jawAreaSlider, thicknessSlider, eSlider, cMaterialSlider
   ].forEach(s => {
     if (s) s.addEventListener("input", update);
   });

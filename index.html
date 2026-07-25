@@ -86,20 +86,52 @@
             Shaded = typical range from elastography/indentation studies; full range includes method-dependent outliers.
           </div>
         </div>
+
+        <div class="slider-row" id="cMaterialSliderRow">
+          <div class="label-row">
+            <span>
+              c_material (Pa&middot;s)
+              <span class="info-icon">ⓘ<span class="tooltip-text" id="cMaterialTooltip"></span></span>
+            </span>
+            <span class="val" id="cMaterialVal">2.0</span>
+          </div>
+          <div class="input-slider-container">
+            <input type="range" id="cMaterialSlider" class="shaded-slider" min="2.0" max="10.0" step="0.1" value="2.0">
+            <input type="number" id="cMaterialInput" class="small-num-input">
+          </div>
+        </div>
       </div>
 
       <!-- Column 2: Tool Contact Parameters -->
       <div class="param-col">
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px;">Tool contact parameters</div>
         
-        <div id="groupAControls" class="slider-row" style="display: none;">
-          <div class="label-row"><span>Contact radius a (mm)</span><span class="val" id="contactRadiusVal">0.29</span></div>
-          <div class="input-slider-container">
-            <input type="range" id="contactRadiusSlider" min="0.29" max="0.65" step="0.01" value="0.29">
-            <input type="number" id="contactRadiusInput" class="small-num-input">
+        <div id="groupAControls" style="display: none;">
+          <div class="slider-row">
+            <div class="label-row"><span>Contact radius a (mm)</span><span class="val" id="contactRadiusVal">0.29</span></div>
+            <div class="input-slider-container">
+              <input type="range" id="contactRadiusSlider" min="0.29" max="0.65" step="0.01" value="0.29">
+              <input type="number" id="contactRadiusInput" class="small-num-input">
+            </div>
+            <div id="contactRadiusNote" class="note" style="margin-top: 6px; display: none; font-size: 10.5px; line-height: 1.4; border-left: 2px solid var(--teal); padding-left: 8px;">
+              Contact modeled as circular for simplicity; actual edge/line contact is a rougher approximation.
+            </div>
           </div>
-          <div id="contactRadiusNote" class="note" style="margin-top: 6px; display: none; font-size: 10.5px; line-height: 1.4; border-left: 2px solid var(--teal); padding-left: 8px;">
-            Contact modeled as circular for simplicity; actual edge/line contact is a rougher approximation.
+          <div class="slider-row" id="lSliderRow">
+            <div class="label-row">
+              <span>
+                Effective contact length L (mm)
+                <span class="info-icon">ⓘ<span class="tooltip-text">Effective contact length of the instrument.</span></span>
+              </span>
+              <span class="val" id="lVal">0.5</span>
+            </div>
+            <div class="input-slider-container">
+              <input type="range" id="lSlider" class="shaded-slider" min="0.5" max="10.0" step="0.1" value="0.5">
+              <input type="number" id="lInput" class="small-num-input">
+            </div>
+            <div class="note" id="lCaption" style="margin-top: 6px; font-size: 11px; line-height: 1.4; border-left: 2px solid var(--teal); padding-left: 8px;">
+              Shaded = typical contact length range for selected tool.
+            </div>
           </div>
         </div>
 
