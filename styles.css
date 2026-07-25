@@ -562,11 +562,44 @@ canvas {
   border: none;
 }
 
-.param-panel input[type=range].shaded-slider::-webkit-slider-runnable-track {
-  background: var(--track-background, rgba(255, 255, 255, 0.15));
+input[type=range].shaded-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
 }
-.param-panel input[type=range].shaded-slider::-moz-range-track {
-  background: var(--track-background, rgba(255, 255, 255, 0.15));
+input[type=range].shaded-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: var(--track-background, #EDF1F3);
+  border-radius: 3px;
+}
+input[type=range].shaded-slider::-webkit-slider-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -5px;
+}
+input[type=range].shaded-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: var(--track-background, #EDF1F3);
+  border-radius: 3px;
+}
+input[type=range].shaded-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  cursor: pointer;
+  border: none;
 }
 
 /* Locked slider styling */

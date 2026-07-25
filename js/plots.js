@@ -122,11 +122,30 @@ function drawYAxis(ctx, H, plotH, W, fMin, fMax, decimals, highlightZero = false
   }
 }
 
+// Box-Muller transform for Gaussian random variable with mean=0, std=1
+function nextGaussian() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// Generate percentiles (2.5% and 97.5%) of noisy force at a point
+function getPercentilesWithNoise(fVal, N = 50) {
+  const vals = [];
+  const sd = Math.max(0.001, Math.abs(fVal) * 0.05);
+  for (let i = 0; i < N; i++) {
+    vals.push(fVal + nextGaussian() * sd);
+  }
+  vals.sort((a, b) => a - b);
+  return [vals[1], vals[48]];
+}
+
 /**
  * Draw Force vs Depth plot
  * Shows elastic response across indentation range
  */
-export function drawDepthPlot(k, xCurrent) {
+export function drawDepthPlot(k, xCurrent, mcOn) {
   const canvas = document.getElementById("plotDepth");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -150,6 +169,37 @@ export function drawDepthPlot(k, xCurrent) {
   
   // Draw axes
   drawAxes(ctx, W, H);
+  
+  // Draw shaded confidence band if Monte Carlo is ON
+  if (mcOn) {
+    const minPts = [];
+    const maxPts = [];
+    for (let i = 0; i <= 100; i++) {
+      const x = (i / 100) * xMax;
+      const f = k * mmToM(x);
+      const [fMinCI, fMaxCI] = getPercentilesWithNoise(f);
+      
+      const px = PAD_X + (x / xMax) * plotW;
+      const pyMin = H - PAD_Y - (fMinCI / fMax) * plotH;
+      const pyMax = H - PAD_Y - (fMaxCI / fMax) * plotH;
+      
+      minPts.push({ x: px, y: pyMin });
+      maxPts.push({ x: px, y: pyMax });
+    }
+    
+    ctx.fillStyle = "rgba(55, 138, 221, 0.15)"; // semi-transparent blue matching #378ADD
+    ctx.beginPath();
+    ctx.moveTo(minPts[0].x, minPts[0].y);
+    for (let i = 1; i < minPts.length; i++) {
+      ctx.lineTo(minPts[i].x, minPts[i].y);
+    }
+    ctx.lineTo(maxPts[maxPts.length - 1].x, maxPts[maxPts.length - 1].y);
+    for (let i = maxPts.length - 2; i >= 0; i--) {
+      ctx.lineTo(maxPts[i].x, maxPts[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
   
   // Draw slope line F = k * x_m
   ctx.strokeStyle = "#378ADD";
@@ -181,7 +231,7 @@ export function drawDepthPlot(k, xCurrent) {
  * Draw Force vs Time plot
  * Shows one indent-hold-release cycle
  */
-export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax) {
+export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, mcOn) {
   const canvas = document.getElementById("plotTime");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -198,15 +248,19 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
   function xOfT(t) {
     if (t < rampT) return xTarget * (t / rampT);
     if (t < T - rampT) return xTarget;
-    return xTarget * ((T - t) / rampT);
+    return xTarget * Math.max(0, (T - t) / rampT);
   }
   function vOfT(t) {
-    const dt = 0.01;
-    return (xOfT(t + dt) - xOfT(t - dt)) / (2 * dt);
+    if (t < rampT) return xTarget / rampT;
+    if (t < T - rampT) return 0;
+    if (t <= T) return -xTarget / rampT;
+    return 0;
   }
   
   // Calculate points and find range
   const pts = [];
+  const minPts = [];
+  const maxPts = [];
   let minF = Infinity;
   let maxF = -Infinity;
   for (let i = 0; i <= 100; i++) {
@@ -214,8 +268,17 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
     const x = xOfT(t), v = vOfT(t);
     const f = k * mmToM(x) + c * mmToM(v);
     pts.push([t, f]);
-    if (f < minF) minF = f;
-    if (f > maxF) maxF = f;
+    
+    if (mcOn) {
+      const [fMinCI, fMaxCI] = getPercentilesWithNoise(f);
+      minPts.push(fMinCI);
+      maxPts.push(fMaxCI);
+      if (fMinCI < minF) minF = fMinCI;
+      if (fMaxCI > maxF) maxF = fMaxCI;
+    } else {
+      if (f < minF) minF = f;
+      if (f > maxF) maxF = f;
+    }
   }
   
   // Handle case where range is zero
@@ -241,6 +304,28 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
   
   // Draw axes
   drawAxes(ctx, W, H);
+  
+  // Draw shaded confidence band if Monte Carlo is ON
+  if (mcOn) {
+    ctx.fillStyle = "rgba(29, 158, 117, 0.15)"; // semi-transparent green matching #1D9E75
+    ctx.beginPath();
+    for (let i = 0; i <= 100; i++) {
+      const t = (i / 100) * T;
+      const fMinCI = minPts[i];
+      const px = PAD_X + (t / T) * plotW;
+      const py = H - PAD_Y - ((fMinCI - fMin) / (fMax - fMin)) * plotH;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    for (let i = 100; i >= 0; i--) {
+      const t = (i / 100) * T;
+      const fMaxCI = maxPts[i];
+      const px = PAD_X + (t / T) * plotW;
+      const py = H - PAD_Y - ((fMaxCI - fMin) / (fMax - fMin)) * plotH;
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
   
   // Draw curve
   ctx.strokeStyle = "#1D9E75";

@@ -4,7 +4,10 @@ import {
   calculateElasticForce,
   calculateViscousForce,
   calculateTotalForce,
-  calculateUncertainty
+  nextGaussian,
+  generateSyntheticData,
+  fitLeastSquares,
+  runBootstrap
 } from './physics.js';
 import { drawDepthPlot, drawTimePlot, calculateRampT, calculateEffectiveVelocity } from './plots.js';
 
@@ -146,6 +149,19 @@ export function initPhysicsTab() {
     eSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
   }
 
+  function updateCSliderBackground(cfg) {
+    if (!cSlider) return;
+    const min = cfg.c_full[0];
+    const max = cfg.c_full[1];
+    const tightMin = cfg.c_tight[0];
+    const tightMax = cfg.c_tight[1];
+    
+    const pMin = ((tightMin - min) / (max - min)) * 100;
+    const pMax = ((tightMax - min) / (max - min)) * 100;
+    
+    cSlider.style.setProperty('--track-background', `linear-gradient(to right, #EDF1F3 0%, #EDF1F3 ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, #EDF1F3 ${pMax}%, #EDF1F3 100%)`);
+  }
+
   function updateKScale() {
     if (!tissueTypeSelect || !toolTypeSelect || !kSlider) return;
     const selectedTissue = tissueTypeSelect.value;
@@ -237,6 +253,7 @@ export function initPhysicsTab() {
         if (cVal) {
           cVal.textContent = defaultC.toFixed(1);
         }
+        updateCSliderBackground(cfg);
       }
 
       if (eCaption) {
@@ -245,6 +262,11 @@ export function initPhysicsTab() {
       const eTooltip = document.getElementById("eTooltip");
       if (eTooltip) {
         eTooltip.innerHTML = `<strong>Tissue description:</strong> ${cfg.name}<br><strong>Method priority:</strong> ${cfg.priority}`;
+      }
+      
+      const cTooltip = document.getElementById("cTooltip");
+      if (cTooltip) {
+        cTooltip.innerHTML = `<strong>Tissue description:</strong> ${cfg.name}<br><strong>Method priority:</strong> ${cfg.priority}`;
       }
     }
     updateKScale();
@@ -340,6 +362,173 @@ export function initPhysicsTab() {
     input.step = slider.step || "1";
   });
 
+  let bootstrapTimeout = null;
+
+  function runBootstrapAndUpdateUI() {
+    const selectedTissue = tissueTypeSelect.value;
+    const cfg = tissueConfig[selectedTissue];
+    const selectedTool = toolTypeSelect.value;
+    const toolCfg = toolConfig[selectedTool];
+    if (!cfg || !toolCfg) return;
+
+    // Get current values
+    const currentE_kPa = parseFloat(eSlider.value);
+    const currentC = parseFloat(cSlider.value);
+    const currentX = parseFloat(xSlider.value);
+    const currentV = parseFloat(vSlider.value);
+    const currentHold = parseFloat(holdSlider.value);
+    const currentRampMin = parseFloat(rampMinSlider.value);
+    const currentRampMax = parseFloat(rampMaxSlider.value);
+
+    // Current deterministic k
+    const E_Pa = currentE_kPa * 1000;
+    let currentK = 0;
+    let nu = 0;
+    let a_mm = 0;
+    let A_mm2 = 0;
+    let h_mm = 0;
+
+    if (toolCfg.group === "A") {
+      a_mm = parseFloat(contactRadiusSlider.value);
+      const a_m = a_mm / 1000;
+      nu = parseFloat(nuSlider.value);
+      currentK = (2 * a_m * E_Pa) / (1 - nu * nu);
+    } else {
+      A_mm2 = parseFloat(jawAreaSlider.value);
+      const A_m2 = A_mm2 * 1e-6;
+      h_mm = parseFloat(thicknessSlider.value);
+      const h_m = h_mm / 1000;
+      currentK = (E_Pa * A_m2) / h_m;
+    }
+
+    // Step 1: Generate synthetic noisy data using 5% relative SD
+    const data = generateSyntheticData(currentK, currentC, currentX, currentV, currentHold, currentRampMin, currentRampMax);
+
+    // Step 2 & 3: Run B=1000 bootstrap resamples using simultaneous 2x2 linear least-squares regression
+    const { k_boot, c_boot } = runBootstrap(data, 1000);
+
+    // Step 4: Compute 95% confidence intervals (2.5th and 97.5th percentiles)
+    const [kMinCI, kMaxCI] = getPercentiles(k_boot, 2.5, 97.5);
+    const [cMinCI, cMaxCI] = getPercentiles(c_boot, 2.5, 97.5);
+
+    // Step 5: Back-derive Modulus E confidence interval
+    let E_min = 0;
+    let E_max = 0;
+    if (toolCfg.group === "A") {
+      E_min = kMinCI * (1 - nu * nu) / (2 * a_mm);
+      E_max = kMaxCI * (1 - nu * nu) / (2 * a_mm);
+    } else {
+      E_min = kMinCI * h_mm / A_mm2;
+      E_max = kMaxCI * h_mm / A_mm2;
+    }
+
+    // Update labels
+    const ciELabel = document.getElementById("ciELabel");
+    const ciKLabel = document.getElementById("ciKLabel");
+    const ciCLabel = document.getElementById("ciCLabel");
+
+    const halfE = (E_max - E_min) / 2;
+    if (ciELabel) {
+      ciELabel.textContent = `E = ${currentE_kPa.toFixed(1)} ± ${halfE.toFixed(1)} kPa`;
+    }
+    if (ciKLabel) {
+      ciKLabel.innerHTML = `k &approx; ${currentK.toFixed(1)} N/m (range: ${kMinCI.toFixed(1)}&ndash;${kMaxCI.toFixed(1)} N/m)`;
+    }
+    const halfC = (cMaxCI - cMinCI) / 2;
+    if (ciCLabel) {
+      ciCLabel.textContent = `c = ${currentC.toFixed(1)} ± ${halfC.toFixed(1)} Ns/m`;
+    }
+
+    // Update bars scaled relative to bootstrap interval itself
+    const ciEEl = document.getElementById("ciE");
+    const ciKEl = document.getElementById("ciK");
+    const ciCEl = document.getElementById("ciC");
+
+    if (ciEEl) {
+      const diffE = E_max - E_min;
+      const pctE = diffE > 0 ? ((currentE_kPa - E_min) / diffE) * 100 : 50;
+      ciEEl.style.left = "0%";
+      ciEEl.style.width = Math.min(100, Math.max(0, pctE)) + "%";
+    }
+    if (ciKEl) {
+      const diffK = kMaxCI - kMinCI;
+      const pctK = diffK > 0 ? ((currentK - kMinCI) / diffK) * 100 : 50;
+      ciKEl.style.left = "0%";
+      ciKEl.style.width = Math.min(100, Math.max(0, pctK)) + "%";
+    }
+    if (ciCEl) {
+      const diffC = cMaxCI - cMinCI;
+      const pctC = diffC > 0 ? ((currentC - cMinCI) / diffC) * 100 : 50;
+      ciCEl.style.left = "0%";
+      ciCEl.style.width = Math.min(100, Math.max(0, pctC)) + "%";
+    }
+
+    // Update elastic/viscous decomposition ± standard deviation if Monte Carlo is ON
+    let pElasticSD = 0;
+    if (k_boot && c_boot) {
+      const x_m = mmToM(currentX);
+      const v_effective = calculateEffectiveVelocity(currentX, currentV, currentRampMin, currentRampMax);
+      const v_effective_m = mmToM(v_effective);
+      
+      const pElastic_boot = [];
+      for (let i = 0; i < k_boot.length; i++) {
+        const fe = k_boot[i] * x_m;
+        const fv = c_boot[i] * v_effective_m;
+        const tot = fe + fv;
+        pElastic_boot.push(tot > 0 ? (fe / tot) * 100 : 0);
+      }
+      
+      // Calculate mean and SD
+      let sum = 0;
+      for (let i = 0; i < pElastic_boot.length; i++) {
+        sum += pElastic_boot[i];
+      }
+      const mean = sum / pElastic_boot.length;
+      
+      let variance = 0;
+      for (let i = 0; i < pElastic_boot.length; i++) {
+        variance += Math.pow(pElastic_boot[i] - mean, 2);
+      }
+      pElasticSD = Math.sqrt(variance / pElastic_boot.length);
+    }
+
+    const mcToggle = document.getElementById("mcToggle");
+    const mcOn = mcToggle && mcToggle.classList.contains("on");
+
+    const elasticPct = document.getElementById("elasticPct");
+    const viscousPct = document.getElementById("viscousPct");
+
+    // Recalculate deterministic percentages for display
+    const x_m = mmToM(currentX);
+    const v_effective = calculateEffectiveVelocity(currentX, currentV, currentRampMin, currentRampMax);
+    const v_effective_m = mmToM(v_effective);
+    const fElastic = calculateElasticForce(currentK, x_m);
+    const fViscous = calculateViscousForce(currentC, v_effective_m);
+    const total = fElastic + fViscous;
+    let pElastic = 50;
+    if (total > 0) {
+      pElastic = Math.round((fElastic / total) * 100);
+    } else {
+      pElastic = 0;
+    }
+    const pViscous = 100 - pElastic;
+
+    if (mcOn) {
+      if (elasticPct) elasticPct.textContent = `${pElastic}% ± ${Math.round(pElasticSD)}%`;
+      if (viscousPct) viscousPct.textContent = `${pViscous}% ± ${Math.round(pElasticSD)}%`;
+    } else {
+      if (elasticPct) elasticPct.textContent = `${pElastic}%`;
+      if (viscousPct) viscousPct.textContent = `${pViscous}%`;
+    }
+  }
+
+  function getPercentiles(arr, p1 = 2.5, p2 = 97.5) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    const idx1 = Math.floor((p1 / 100) * sorted.length);
+    const idx2 = Math.floor((p2 / 100) * sorted.length);
+    return [sorted[idx1], sorted[idx2]];
+  }
+
   function update() {
     const selectedTissue = tissueTypeSelect.value;
     const cfg = tissueConfig[selectedTissue];
@@ -367,7 +556,9 @@ a = ${a_mm.toFixed(2)} mm → ${a_m.toFixed(5)} m
 E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
 ν = ${nu.toFixed(2)}
 k = 2 × ${a_m.toFixed(5)} × ${E_Pa.toFixed(0)} / (1 − ${nu.toFixed(2)}²)
-k = ${numerator.toFixed(4)} / ${denominator.toFixed(4)} ≈ ${k.toFixed(1)} N/m`;
+k = ${numerator.toFixed(4)} / ${denominator.toFixed(4)} ≈ ${k.toFixed(1)} N/m
+
+This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
     } else {
       const A_mm2 = parseFloat(jawAreaSlider.value);
       const A_m2 = A_mm2 * 1e-6;
@@ -380,7 +571,9 @@ k = ${numerator.toFixed(4)} / ${denominator.toFixed(4)} ≈ ${k.toFixed(1)} N/m`
 E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
 A = ${A_mm2.toFixed(0)} mm² → ${A_m2.toString()} m²
 h = ${h_mm.toFixed(1)} mm → ${h_m.toFixed(4)} m
-k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed(1)} N/m`;
+k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed(1)} N/m
+
+This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
     }
     
     kSlider.value = k;
@@ -470,57 +663,6 @@ k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed
       vVal.innerHTML = `${v.toFixed(1)} &rarr; <span style="color:#B06A18; font-weight:700;">${v_effective.toFixed(1)} (adjusted)</span>`;
     }
 
-    // Uncertainty propagation from E to k
-    const { ciEWidth, ciCWidth } = calculateUncertainty(E_kPa, c);
-    
-    let kMinCI, kMaxCI;
-    if (toolCfg.group === "A") {
-      const a_m = parseFloat(contactRadiusSlider.value) / 1000;
-      const nu = parseFloat(nuSlider.value);
-      kMinCI = 2 * a_m * ((E_kPa - ciEWidth) * 1000) / (1 - nu * nu);
-      kMaxCI = 2 * a_m * ((E_kPa + ciEWidth) * 1000) / (1 - nu * nu);
-    } else {
-      const A_m2 = parseFloat(jawAreaSlider.value) * 1e-6;
-      const h_m = parseFloat(thicknessSlider.value) / 1000;
-      kMinCI = ((E_kPa - ciEWidth) * 1000) * A_m2 / h_m;
-      kMaxCI = ((E_kPa + ciEWidth) * 1000) * A_m2 / h_m;
-    }
-    
-    const ciKLabel = document.getElementById("ciKLabel");
-    const ciCLabel = document.getElementById("ciCLabel");
-    if (ciKLabel) {
-      ciKLabel.innerHTML = `E = ${E_kPa.toFixed(1)} &plusmn; ${ciEWidth.toFixed(1)} kPa | k &approx; ${k.toFixed(1)} N/m (range: ${kMinCI.toFixed(1)}&ndash;${kMaxCI.toFixed(1)} N/m)`;
-    }
-    if (ciCLabel) {
-      ciCLabel.textContent = `${c.toFixed(1)} ± ${ciCWidth.toFixed(1)} Ns/m`;
-    }
-
-    // Map CI widths onto slider min/max ranges as percentages for DOM positioning
-    const ciKStart = Math.max(kMin, kMinCI);
-    const ciKEnd = Math.min(kMax, kMaxCI);
-    const kRange = kMax - kMin;
-    const ciKLeft = kRange > 0 ? ((ciKStart - kMin) / kRange) * 100 : 0;
-    const ciKWidthPct = kRange > 0 ? ((ciKEnd - ciKStart) / kRange) * 100 : 0;
-
-    const cMin = parseFloat(cSlider.min) || 0;
-    const cMax = parseFloat(cSlider.max) || 50;
-    const cRange = cMax - cMin;
-    const ciCStart = Math.max(cMin, c - ciCWidth);
-    const ciCEnd = Math.min(cMax, c + ciCWidth);
-    const ciCLeft = cRange > 0 ? ((ciCStart - cMin) / cRange) * 100 : 0;
-    const ciCWidthPct = cRange > 0 ? ((ciCEnd - ciCStart) / cRange) * 100 : 0;
-
-    const ciKEl = document.getElementById("ciK");
-    const ciCEl = document.getElementById("ciC");
-    if (ciKEl) {
-      ciKEl.style.left = ciKLeft + "%";
-      ciKEl.style.width = ciKWidthPct + "%";
-    }
-    if (ciCEl) {
-      ciCEl.style.left = ciCLeft + "%";
-      ciCEl.style.width = ciCWidthPct + "%";
-    }
-
     // Decomposition (using effective velocity for consistent viscous force attribution)
     const fElastic = calculateElasticForce(k, x_m);
     const fViscous = calculateViscousForce(c, v_effective_m);
@@ -558,6 +700,7 @@ k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">This calculation uses your current slider values exactly (not affected by Monte Carlo).</div>
           ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
         </div>
       `;
@@ -579,9 +722,19 @@ k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed
     // Console verification
     console.log("fElastic:", fElastic.toFixed(4), "N, fViscous:", fViscous.toFixed(4), "N, total:", total.toFixed(4), "N");
 
+    // Retrieve Monte Carlo state
+    const mcToggle = document.getElementById("mcToggle");
+    const mcOn = mcToggle && mcToggle.classList.contains("on");
+
     // Draw plots
-    drawDepthPlot(k, x);
-    drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax);
+    drawDepthPlot(k, x, mcOn);
+    drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn);
+
+    // Schedule debounced bootstrap parameter updates (150ms delay)
+    if (bootstrapTimeout) clearTimeout(bootstrapTimeout);
+    bootstrapTimeout = setTimeout(() => {
+      runBootstrapAndUpdateUI();
+    }, 150);
   }
 
   [
@@ -590,6 +743,13 @@ k = ${E_Pa.toFixed(0)} × ${A_m2.toString()} / ${h_m.toFixed(4)} ≈ ${k.toFixed
   ].forEach(s => {
     if (s) s.addEventListener("input", update);
   });
+
+  const mcToggle = document.getElementById("mcToggle");
+  if (mcToggle) {
+    mcToggle.addEventListener("click", () => {
+      update();
+    });
+  }
 
   inputs.forEach(({ slider, input }) => {
     if (!slider || !input) return;

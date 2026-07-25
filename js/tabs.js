@@ -80,11 +80,20 @@ function physicsTabHTML() {
           </div>
           <div id="kCalcSteps" class="calc-steps"></div>
         </div>
-        <div class="slider-row">
-          <div class="label-row"><span>Damping c (Ns/m)</span><span class="val" id="cVal">10</span></div>
+        <div class="slider-row" id="cSliderRow">
+          <div class="label-row">
+            <span>
+              Damping c (Ns/m)
+              <span class="info-icon">ⓘ<span class="tooltip-text" id="cTooltip"></span></span>
+            </span>
+            <span class="val" id="cVal">10</span>
+          </div>
           <div class="input-slider-container">
-            <input type="range" id="cSlider" min="0" max="50" value="10">
+            <input type="range" id="cSlider" class="shaded-slider" min="2" max="10" step="0.1" value="10">
             <input type="number" id="cInput" class="small-num-input">
+          </div>
+          <div class="note" id="cCaption" style="margin-top: 6px; font-size: 11px; line-height: 1.4; border-left: 2px solid var(--teal); padding-left: 8px;">
+            Shaded = typical range from elastography/indentation studies; full range includes method-dependent outliers.
           </div>
         </div>
         <div class="slider-row">
@@ -140,19 +149,28 @@ function physicsTabHTML() {
         <div class="panels-row">
           <div class="card" id="uncertaintyPanel">
             <h3>Parameter uncertainty</h3>
-            <p class="sub" style="margin-bottom: 8px;">k, c confidence interval (bootstrap / least-squares)</p>
-            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, c</span>
+            <p class="sub" id="uncertaintySubtitle" style="margin-bottom: 8px;">E, c confidence interval (bootstrap / least-squares); k shown as derived value</p>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: E, k, c</span>
+            
             <div class="ci-row">
-              <div class="name" id="ciKName">E</div>
+              <div class="name">E</div>
+              <div class="ci-bar"><div class="fill" id="ciE"></div></div>
+              <div id="ciELabel" style="font-size:12px;color:var(--text-muted);white-space:nowrap;"></div>
+            </div>
+            
+            <div class="ci-row">
+              <div class="name">k</div>
               <div class="ci-bar"><div class="fill" id="ciK"></div></div>
               <div id="ciKLabel" style="font-size:12px;color:var(--text-muted);white-space:nowrap;"></div>
             </div>
+            
             <div class="ci-row">
               <div class="name">c</div>
               <div class="ci-bar"><div class="fill" id="ciC"></div></div>
               <div id="ciCLabel" style="font-size:12px;color:var(--text-muted);white-space:nowrap;"></div>
             </div>
-            <p class="note">Note: These confidence intervals are illustrative placeholders, not real computed results.</p>
+            
+            <p class="note" style="margin-top: 12px;">Uncertainty computed via non-parametric bootstrap (B=1000 resamples) on synthetic noisy data around the current model curve — not derived from real experimental measurements.</p>
           </div>
 
           <div class="card">
