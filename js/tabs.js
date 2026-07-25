@@ -187,7 +187,6 @@ function physicsTabHTML() {
               <span><span class="dot viscous-dot"></span>Viscous — <span id="viscousPct">40%</span></span>
             </div>
             <div id="dynamicFormula"></div>
-            <p class="note" style="margin-top: 12px;">Recomputes live as you move the sliders above.</p>
           </div>
         </div>
       </div>

@@ -169,7 +169,7 @@ export function initPhysicsTab() {
     const pMin = ((tightMin - min) / (max - min)) * 100;
     const pMax = ((tightMax - min) / (max - min)) * 100;
     
-    cMaterialSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(55, 138, 221, 0.4) ${pMin}%, rgba(55, 138, 221, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
+    cMaterialSlider.style.setProperty('--track-background', `linear-gradient(to right, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMin}%, rgba(29, 158, 117, 0.4) ${pMax}%, rgba(255, 255, 255, 0.15) ${pMax}%, rgba(255, 255, 255, 0.15) 100%)`);
   }
 
   function updateLSliderBackground(toolCfg) {
@@ -663,13 +663,8 @@ export function initPhysicsTab() {
       k = numerator / denominator;
       
       kCalculationText = `Formula: k = 2aE / (1 − ν²)
-a = ${a_mm.toFixed(2)} mm → ${fmt(a_m)} m
-E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
-ν = ${nu.toFixed(2)}
 k = 2 × ${fmt(a_m)} × ${E_Pa.toFixed(0)} / (1 − ${nu.toFixed(2)}²)
-k = ${fmt(numerator)} / ${fmt(denominator)} ≈ ${k.toFixed(1)} N/m
-
-This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
+k = ${fmt(numerator)} / ${fmt(denominator)} ≈ ${k.toFixed(1)} N/m`;
     } else {
       const A_mm2 = parseFloat(jawAreaSlider.value);
       const A_m2 = A_mm2 * 1e-6;
@@ -679,12 +674,7 @@ This calculation uses your current slider values exactly (not affected by Monte 
       k = (E_Pa * A_m2) / h_m;
       
       kCalculationText = `Formula: k = E·A / h
-E = ${E_kPa.toFixed(2)} kPa → ${E_Pa.toFixed(0)} Pa
-A = ${A_mm2.toFixed(0)} mm² → ${fmt(A_m2)} m²
-h = ${h_mm.toFixed(1)} mm → ${fmt(h_m)} m
-k = ${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)} ≈ ${k.toFixed(1)} N/m
-
-This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
+k = ${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)} ≈ ${k.toFixed(1)} N/m`;
     }
     
     kSlider.value = k;
@@ -716,13 +706,8 @@ This calculation uses your current slider values exactly (not affected by Monte 
       c = numeratorC / L_m;
       
       cCalculationText = `Formula: c_lumped = c_material × π·a² / L
-c_material = ${cMaterial.toFixed(1)} Pa·s
-a = ${a_mm.toFixed(2)} mm → ${fmt(a_m)} m
-L = ${L_mm.toFixed(1)} mm → ${fmt(L_m)} m
 c_lumped = ${cMaterial.toFixed(1)} × π × ${fmt(a_m)}² / ${fmt(L_m)}
-c_lumped = ${fmt(numeratorC)} / ${fmt(L_m)} ≈ ${c.toFixed(2)} Ns/m
-
-This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
+c_lumped = ${fmt(numeratorC)} / ${fmt(L_m)} ≈ ${c.toFixed(2)} Ns/m`;
     } else {
       const A_mm2 = parseFloat(jawAreaSlider.value);
       const A_m2 = A_mm2 * 1e-6;
@@ -733,13 +718,8 @@ This calculation uses your current slider values exactly (not affected by Monte 
       c = numeratorC / h_m;
       
       cCalculationText = `Formula: c_lumped = c_material × A / h
-c_material = ${cMaterial.toFixed(1)} Pa·s
-A = ${A_mm2.toFixed(0)} mm² → ${fmt(A_m2)} m²
-h = ${h_mm.toFixed(1)} mm → ${fmt(h_m)} m
 c_lumped = ${cMaterial.toFixed(1)} × ${fmt(A_m2)} / ${fmt(h_m)}
-c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m
-
-This calculation uses your current slider values exactly (not affected by Monte Carlo).`;
+c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
     }
 
     cSlider.value = c;
