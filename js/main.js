@@ -240,7 +240,11 @@ export function initPhysicsTab() {
       }
 
       if (eCaption) {
-        eCaption.textContent = `Shaded area = typical range (elastography/indentation) for ${cfg.name}; full range includes method-dependent outliers. Method priority: ${cfg.priority}.`;
+        eCaption.textContent = "Shaded = typical range from elastography/indentation studies; full range includes method-dependent outliers.";
+      }
+      const eTooltip = document.getElementById("eTooltip");
+      if (eTooltip) {
+        eTooltip.innerHTML = `<strong>Tissue description:</strong> ${cfg.name}<br><strong>Method priority:</strong> ${cfg.priority}`;
       }
     }
     updateKScale();
