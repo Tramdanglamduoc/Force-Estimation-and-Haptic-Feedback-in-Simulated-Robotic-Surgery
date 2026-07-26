@@ -86,6 +86,32 @@ export function physicsTabHTML() {
           </div>
         </div>
 
+        <div class="plots-row" style="margin-bottom: 20px;">
+          <div class="card">
+            <h3>Hysteresis loop</h3>
+            <p class="sub" style="margin-bottom: 8px;">Force vs. depth for one full loading/unloading cycle</p>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: k, c, x, ẋ</span>
+            <canvas id="plotHysteresis" width="400" height="180"></canvas>
+          </div>
+          <div class="card">
+            <h3>Cyclic loading & preconditioning</h3>
+            <p class="sub" style="margin-bottom: 16px;">Configure cyclic loading parameters</p>
+            
+            <div class="toggle-wrap" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; background: rgba(0,0,0,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);">
+              <span style="font-size: 13px; font-weight: 600; color: var(--navy);">Cyclic loading</span>
+              <div class="switch" id="cyclicToggle"><div class="knob"></div></div>
+            </div>
+            
+            <div class="slider-row" id="cycleCountRow" style="display: none;">
+              <div class="label-row"><span>Cycle count</span><span class="val" id="cycleCountVal">1</span></div>
+              <div class="input-slider-container">
+                <input type="range" id="cycleCountSlider" min="1" max="10" step="1" value="1">
+              </div>
+              <p class="note" style="margin-top: 10px;">First cycle uses base parameters. Subsequent cycles assume identical parameters (default behavior, no softening assumption).</p>
+            </div>
+          </div>
+        </div>
+
         <div class="panels-row">
           <div class="card" id="uncertaintyPanel">
             <h3>Parameter uncertainty</h3>

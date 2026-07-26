@@ -250,9 +250,9 @@ export function drawDepthPlot(k, xCurrent, mcOn, modelType = "Kelvin-Voigt", c =
 
 /**
  * Draw Force vs Time plot
- * Shows one indent-hold-release cycle
+ * Shows one or multiple indent-hold-release cycles
  */
-export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, mcOn, modelType = "Kelvin-Voigt") {
+export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, mcOn, modelType = "Kelvin-Voigt", isCyclicOn = false, cycleCount = 1) {
   const canvas = document.getElementById("plotTime");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -262,19 +262,25 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
   
   ctx.clearRect(0, 0, W, H);
   
-  // Calculate dynamic rampT and total time T based on inputs and configurable bounds
+  // Calculate dynamic rampT and single cycle period Tc based on inputs and configurable bounds
   const rampT = calculateRampT(xTarget, vTarget, rampMin, rampMax);
-  const T = 2 * rampT + holdDuration;
+  const Tc = 2 * rampT + holdDuration;
+  const N_cycles = (isCyclicOn && cycleCount > 0) ? cycleCount : 1;
+  const T = N_cycles * Tc;
   
   function xOfT(t) {
-    if (t < rampT) return xTarget * (t / rampT);
-    if (t < T - rampT) return xTarget;
-    return xTarget * Math.max(0, (T - t) / rampT);
+    if (t >= T) return 0;
+    const tInCycle = t % Tc;
+    if (tInCycle < rampT) return xTarget * (tInCycle / rampT);
+    if (tInCycle < Tc - rampT) return xTarget;
+    return xTarget * Math.max(0, (Tc - tInCycle) / rampT);
   }
   function vOfT(t) {
-    if (t < rampT) return xTarget / rampT;
-    if (t < T - rampT) return 0;
-    if (t <= T) return -xTarget / rampT;
+    if (t >= T) return 0;
+    const tInCycle = t % Tc;
+    if (tInCycle < rampT) return xTarget / rampT;
+    if (tInCycle < Tc - rampT) return 0;
+    if (tInCycle <= Tc) return -xTarget / rampT;
     return 0;
   }
   
@@ -289,7 +295,8 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
     const x = xOfT(t), v = vOfT(t);
     let f = 0;
     if (modelType === "Maxwell") {
-      f = calculateMaxwellForce(t, k, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+      const tInCycle = t % Tc;
+      f = calculateMaxwellForce(tInCycle, k, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
     } else {
       f = k * mmToM(x) + c * mmToM(v);
     }
@@ -366,4 +373,161 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
   
   // Axis titles
   drawAxisTitles(ctx, W, H, "time (s)", "force (N)");
+}
+
+/**
+ * Draw Hysteresis loop plot (Force vs Depth for one loading-then-unloading cycle)
+ */
+export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcOn) {
+  const canvas = document.getElementById("plotHysteresis");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const plotW = W - PAD_X - RIGHT_MARGIN;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+  
+  ctx.clearRect(0, 0, W, H);
+  
+  const xSlider = document.getElementById("xSlider");
+  const xMax = xSlider ? parseFloat(xSlider.max) : 10;
+  
+  // Calculate effective velocity
+  const v_effective = calculateEffectiveVelocity(xTarget, vTarget, rampMin, rampMax);
+  const v_effective_m = mmToM(v_effective);
+  
+  // Generate points for one loading-unloading cycle (excluding hold phase)
+  // Loading phase: x goes from 0 to xTarget, ẋ = v_effective
+  // Unloading phase: x goes from xTarget back to 0, ẋ = -v_effective
+  const pts = [];
+  const minPts = [];
+  const maxPts = [];
+  
+  // 50 points for loading
+  for (let i = 0; i <= 50; i++) {
+    const x = (i / 50) * xTarget;
+    const f = k * mmToM(x) + c * v_effective_m;
+    pts.push({ x, f, phase: 'loading' });
+  }
+  // 50 points for unloading
+  for (let i = 0; i <= 50; i++) {
+    const x = xTarget - (i / 50) * xTarget;
+    const f = k * mmToM(x) - c * v_effective_m;
+    pts.push({ x, f, phase: 'unloading' });
+  }
+  
+  // Find min and max force for axis limits
+  let minF = Infinity;
+  let maxF = -Infinity;
+  pts.forEach((p, idx) => {
+    if (mcOn) {
+      const [fMinCI, fMaxCI] = getPercentilesWithNoise(p.f);
+      minPts.push(fMinCI);
+      maxPts.push(fMaxCI);
+      if (fMinCI < minF) minF = fMinCI;
+      if (fMaxCI > maxF) maxF = fMaxCI;
+    } else {
+      if (p.f < minF) minF = p.f;
+      if (p.f > maxF) maxF = p.f;
+    }
+  });
+  
+  if (minF === maxF) {
+    minF = -1.0;
+    maxF = 1.0;
+  }
+  const fRange = maxF - minF;
+  const padding = fRange > 0 ? fRange * 0.1 : 0.5;
+  const fMin = minF - padding;
+  const fMax = maxF + padding;
+  
+  // Y ticks and grid lines
+  drawYAxis(ctx, H, plotH, W, fMin, fMax, 2, false);
+  
+  // Highlight 0.0 N line
+  drawZeroLine(ctx, W, H, plotH, fMin, fMax);
+  
+  // X ticks and labels (depth in mm)
+  drawXTicks(ctx, H, plotW, 0, xMax, 5, 1);
+  
+  // Draw axes
+  drawAxes(ctx, W, H);
+  
+  // Draw shaded confidence band if Monte Carlo is ON
+  if (mcOn) {
+    ctx.fillStyle = "rgba(55, 138, 221, 0.15)";
+    ctx.beginPath();
+    // loading path (first 51 points)
+    for (let i = 0; i <= 50; i++) {
+      const px = PAD_X + (pts[i].x / xMax) * plotW;
+      const py = H - PAD_Y - ((minPts[i] - fMin) / (fMax - fMin)) * plotH;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    // unloading path (next 51 points)
+    for (let i = 51; i < pts.length; i++) {
+      const px = PAD_X + (pts[i].x / xMax) * plotW;
+      const py = H - PAD_Y - ((minPts[i] - fMin) / (fMax - fMin)) * plotH;
+      ctx.lineTo(px, py);
+    }
+    // reverse path for upper bounds
+    for (let i = pts.length - 1; i >= 51; i--) {
+      const px = PAD_X + (pts[i].x / xMax) * plotW;
+      const py = H - PAD_Y - ((maxPts[i] - fMin) / (fMax - fMin)) * plotH;
+      ctx.lineTo(px, py);
+    }
+    for (let i = 50; i >= 0; i--) {
+      const px = PAD_X + (pts[i].x / xMax) * plotW;
+      const py = H - PAD_Y - ((maxPts[i] - fMin) / (fMax - fMin)) * plotH;
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  
+  // Draw loading path (solid line)
+  ctx.strokeStyle = "#378ADD"; // blue for loading
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 50; i++) {
+    const px = PAD_X + (pts[i].x / xMax) * plotW;
+    const py = H - PAD_Y - ((pts[i].f - fMin) / (fMax - fMin)) * plotH;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  
+  // Draw unloading path (dashed line)
+  ctx.strokeStyle = "#1D9E75"; // green for unloading
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  for (let i = 51; i < pts.length; i++) {
+    const px = PAD_X + (pts[i].x / xMax) * plotW;
+    const py = H - PAD_Y - ((pts[i].f - fMin) / (fMax - fMin)) * plotH;
+    if (i === 51) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]); // reset line dash
+  
+  // Highlight indicator dots
+  const midLoadIdx = 25;
+  const pL1 = { x: PAD_X + (pts[midLoadIdx].x / xMax) * plotW, y: H - PAD_Y - ((pts[midLoadIdx].f - fMin) / (fMax - fMin)) * plotH };
+  ctx.fillStyle = "#378ADD";
+  ctx.beginPath();
+  ctx.arc(pL1.x, pL1.y, 4, 0, 2 * Math.PI);
+  ctx.fill();
+  
+  const midUnloadIdx = 76;
+  const pU1 = { x: PAD_X + (pts[midUnloadIdx].x / xMax) * plotW, y: H - PAD_Y - ((pts[midUnloadIdx].f - fMin) / (fMax - fMin)) * plotH };
+  ctx.fillStyle = "#1D9E75";
+  ctx.beginPath();
+  ctx.arc(pU1.x, pU1.y, 4, 0, 2 * Math.PI);
+  ctx.fill();
+  
+  // Labels for paths
+  ctx.font = "8px sans-serif";
+  ctx.fillStyle = "#378ADD";
+  ctx.fillText("Loading (F = k·x + c·v)", pL1.x + 8, pL1.y - 2);
+  ctx.fillStyle = "#1D9E75";
+  ctx.fillText("Unloading (F = k·x - c·v)", pU1.x + 8, pU1.y + 8);
+  
+  // Axis titles
+  drawAxisTitles(ctx, W, H, "depth (mm)", "force (N)");
 }

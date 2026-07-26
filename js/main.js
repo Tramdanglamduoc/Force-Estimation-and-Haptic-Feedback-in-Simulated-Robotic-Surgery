@@ -4,6 +4,7 @@ import { toggleMonteCarlo, updateMonteCarloVisibility, initParamPanel } from './
 import { handleTissueChange, handleToolChange } from './ui/tissue-tool-handlers.js';
 import { update } from './core/update-cycle.js';
 import { initEventWiring } from './core/event-wiring.js';
+import { initTissueStructure } from './tabs/tissue-structure-tab.js';
 
 // App Initialization
 document.addEventListener("DOMContentLoaded", () => {
@@ -21,6 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Wire up parameters panel toggle click event
   initParamPanel(els);
+
+  // Wire up Tissue Structure controls
+  initTissueStructure(els, () => update(els));
 
   // Wait for DOM to render physics panel before wiring inputs
   requestAnimationFrame(() => {

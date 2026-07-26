@@ -88,12 +88,32 @@ export function getElements() {
     paramPanelHeader: document.getElementById("paramPanelHeader"),
     paramPanel: document.getElementById("paramPanel"),
 
+    cyclicToggle: document.getElementById("cyclicToggle"),
+    cycleCountSlider: document.getElementById("cycleCountSlider"),
+    cycleCountVal: document.getElementById("cycleCountVal"),
+    cycleCountRow: document.getElementById("cycleCountRow"),
+    plotHysteresis: document.getElementById("plotHysteresis"),
+
     modelTypeSelect: document.getElementById("modelType"),
     modelFormulaText: document.getElementById("modelFormulaText"),
     cLabelSpan: document.getElementById("cLabelSpan"),
     maxwellDerivedContainer: document.getElementById("maxwellDerivedContainer"),
     tauVal: document.getElementById("tauVal"),
     tauCalcSteps: document.getElementById("tauCalcSteps"),
-    f0InfoLine: document.getElementById("f0InfoLine")
+    f0InfoLine: document.getElementById("f0InfoLine"),
+
+    // Tissue structure tab elements
+    heteroToggle: document.getElementById("heteroToggle"),
+    heteroControls: document.getElementById("heteroControls"),
+    inclusionDepthSlider: document.getElementById("inclusionDepthSlider"),
+    inclusionDepthVal: document.getElementById("inclusionDepthVal"),
+    stiffnessRatioSlider: document.getElementById("stiffnessRatioSlider"),
+    stiffnessRatioVal: document.getElementById("stiffnessRatioVal"),
+    presetTumor: document.getElementById("presetTumor"),
+    presetVessel: document.getElementById("presetVessel"),
+    kBackgroundDisplay: document.getElementById("kBackgroundDisplay"),
+    tissueCanvas: document.getElementById("tissueCanvas"),
+    kEffectiveDisplay: document.getElementById("kEffectiveDisplay"),
+    kInclusionDisplay: document.getElementById("kInclusionDisplay")
   };
 }

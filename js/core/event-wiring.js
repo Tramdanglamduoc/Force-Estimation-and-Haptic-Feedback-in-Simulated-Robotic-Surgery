@@ -21,11 +21,12 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
     input.step = slider.step || "1";
   });
 
-  // 2. Attach standard input listeners to the 14 sliders
+  // 2. Attach standard input listeners to the sliders
   [
     els.kSlider, els.cSlider, els.xSlider, els.vSlider, els.holdSlider,
     els.rampMinSlider, els.rampMaxSlider, els.nuSlider, els.contactRadiusSlider,
-    els.lSlider, els.jawAreaSlider, els.thicknessSlider, els.eSlider, els.cMaterialSlider
+    els.lSlider, els.jawAreaSlider, els.thicknessSlider, els.eSlider, els.cMaterialSlider,
+    els.cycleCountSlider
   ].forEach(s => {
     if (s) s.addEventListener("input", updateFn);
   });
@@ -33,6 +34,18 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
   // 3. Attach click listener to mcToggle to trigger recalculation/redraw
   if (els.mcToggle) {
     els.mcToggle.addEventListener("click", () => {
+      updateFn();
+    });
+  }
+
+  // Attach click listener to cyclicToggle
+  if (els.cyclicToggle) {
+    els.cyclicToggle.addEventListener("click", () => {
+      els.cyclicToggle.classList.toggle("on");
+      const isCyclicOn = els.cyclicToggle.classList.contains("on");
+      if (els.cycleCountRow) {
+        els.cycleCountRow.style.display = isCyclicOn ? "block" : "none";
+      }
       updateFn();
     });
   }

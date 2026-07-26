@@ -1,19 +1,9 @@
 import { physicsTabHTML } from './tabs/physics-tab-html.js';
+import { structureTabHTML } from './tabs/structure-tab-html.js';
 
 export const tabs = [
   { id: "physics", label: "Physics model", ready: true },
-  { id: "tool", label: "Tool & contact", ready: false, items: [
-    "Indentation velocity slider (0.5–50 mm/s) with slow/typical/fast presets",
-    "Cyclic loading toggle + cycle-count slider — hysteresis loop + preconditioning curve",
-    "Tool tip geometry dropdown (needle / flat grasper / spherical probe)",
-    "Lateral/shear motion toggle — decomposes normal vs. tangential force"
-  ] },
-  { id: "structure", label: "Tissue structure", ready: false, items: [
-    "Heterogeneous tissue toggle",
-    "2D cross-section map to place an embedded vessel/tumor at chosen depth",
-    "Stiffness-ratio control vs. background tissue",
-    "Optional temperature slider (20–45°C), advanced/optional"
-  ] },
+  { id: "structure", label: "Tissue structure", ready: true },
   { id: "sensor", label: "Sensor simulation", ready: false, items: [
     "Gaussian noise standard deviation slider",
     "Sensor/communication latency slider (ms)",
@@ -85,6 +75,8 @@ export function initTabs() {
     if (t.id === "physics") {
       panel.classList.add("active");
       panel.innerHTML = physicsTabHTML();
+    } else if (t.id === "structure") {
+      panel.innerHTML = structureTabHTML();
     } else {
       panel.innerHTML = `
         <div class="card placeholder-card">

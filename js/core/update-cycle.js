@@ -1,8 +1,9 @@
 import { runBootstrapAndUpdateUI } from './bootstrap-ci.js';
-import { drawDepthPlot, drawTimePlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
+import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
 import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce } from '../physics.js';
+import { updateTissueStructure } from '../tabs/tissue-structure-tab.js';
 
 let bootstrapTimeout = null;
 
@@ -350,12 +351,23 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   // Console verification
   console.log("total force:", total.toFixed(4), "N");
 
+  // Retrieve Cyclic Loading state
+  const isCyclicOn = els.cyclicToggle && els.cyclicToggle.classList.contains("on");
+  const cycleCount = els.cycleCountSlider ? parseInt(els.cycleCountSlider.value) : 1;
+  if (els.cycleCountVal) {
+    els.cycleCountVal.textContent = cycleCount;
+  }
+
   // Retrieve Monte Carlo state
   const mcOn = els.mcToggle && els.mcToggle.classList.contains("on");
 
   // Draw plots
   drawDepthPlot(k, x, mcOn, modelType, c, v_effective);
-  drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType);
+  drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType, isCyclicOn, cycleCount);
+  drawHysteresisPlot(k, c, x, v, rampMin, rampMax, mcOn);
+
+  // Draw Tissue structure canvas
+  updateTissueStructure(els, k, x, selectedTissue);
 
   // Schedule debounced bootstrap parameter updates (150ms delay)
   if (bootstrapTimeout) clearTimeout(bootstrapTimeout);
