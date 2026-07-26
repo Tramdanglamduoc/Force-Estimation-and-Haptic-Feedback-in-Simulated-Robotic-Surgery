@@ -2,7 +2,7 @@ import { runBootstrapAndUpdateUI } from './bootstrap-ci.js';
 import { drawDepthPlot, drawTimePlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
-import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce } from '../physics.js';
+import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce } from '../physics.js';
 
 let bootstrapTimeout = null;
 
@@ -91,6 +91,33 @@ c_lumped = (${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${fm
 c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   }
 
+  const modelType = els.modelTypeSelect ? els.modelTypeSelect.value : "Kelvin-Voigt";
+
+  // Append caption to cCalcSteps depending on selected model role
+  if (modelType === "Maxwell") {
+    cCalculationText += "\nNote: c represents a series dashpot for Maxwell.";
+  } else {
+    cCalculationText += "\nNote: c represents a parallel dashpot for Kelvin-Voigt.";
+  }
+
+  // Update banner formula
+  if (els.modelFormulaText) {
+    if (modelType === "Maxwell") {
+      els.modelFormulaText.innerHTML = 'Formula (ODE): Ḟ + (k/c)&middot;F = k&middot;ẋ<br><span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">Maxwell force depends on loading history, not just instantaneous x and ẋ.</span>';
+    } else {
+      els.modelFormulaText.innerHTML = 'Kelvin-Voigt core: F = k&middot;x + c&middot;ẋ';
+    }
+  }
+
+  // Update damping slider label
+  if (els.cLabelSpan) {
+    if (modelType === "Maxwell") {
+      els.cLabelSpan.textContent = "Damping c (series dashpot) (Ns/m)";
+    } else {
+      els.cLabelSpan.textContent = "Damping c (parallel dashpot) (Ns/m)";
+    }
+  }
+
   els.cSlider.value = c;
   if (els.cInput) els.cInput.value = c.toFixed(2);
   if (els.cVal) els.cVal.textContent = c.toFixed(2);
@@ -175,6 +202,26 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
     }
   }
 
+  // Maxwell derived values UI container
+  if (els.maxwellDerivedContainer) {
+    if (modelType === "Maxwell") {
+      els.maxwellDerivedContainer.style.display = "";
+      const tau = calculateRelaxationTime(k, c);
+      if (els.tauVal) els.tauVal.textContent = tau.toFixed(3);
+      if (els.tauCalcSteps) {
+        els.tauCalcSteps.innerHTML = `Relaxation time constant: &tau; = c / k<br>&tau; = ${c.toFixed(2)} / ${k.toFixed(1)} &approx; ${tau.toFixed(3)} s`;
+      }
+      const rampT = calculateRampT(x, v, rampMin, rampMax);
+      const v_m = rampT > 0 ? (x / 1000) / rampT : 0.001;
+      const F0 = calculateMaxwellF0(c, v_m, rampT, tau);
+      if (els.f0InfoLine) {
+        els.f0InfoLine.textContent = `F₀ (at start of hold) = ${F0.toFixed(3)} N`;
+      }
+    } else {
+      els.maxwellDerivedContainer.style.display = "none";
+    }
+  }
+
   // Unit conversions using effective velocity based on dynamic clamp boundaries
   const x_m = mmToM(x);
   const v_effective = calculateEffectiveVelocity(x, v, rampMin, rampMax);
@@ -187,19 +234,67 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
     if (els.vVal) els.vVal.innerHTML = `${v.toFixed(1)} &rarr; <span style="color:#B06A18; font-weight:700;">${v_effective.toFixed(1)} (adjusted)</span>`;
   }
 
-  // Decomposition (using effective velocity for consistent viscous force attribution)
-  const fElastic = calculateElasticForce(k, x_m);
-  const fViscous = calculateViscousForce(c, v_effective_m);
-  const total = calculateTotalForce(fElastic, fViscous);
-  
+  // Decomposition card label changes
+  const decompCard = els.elasticBar ? els.elasticBar.closest('.card') : null;
+  if (decompCard) {
+    const h3 = decompCard.querySelector('h3');
+    const subtitle = decompCard.querySelector('.sub');
+    const badge = decompCard.querySelector('.badge');
+    const legendSpans = decompCard.querySelectorAll('.legend span');
+    
+    if (modelType === "Maxwell") {
+      if (h3) h3.textContent = "Strain decomposition";
+      if (subtitle) subtitle.textContent = "Spring vs. dashpot deformation";
+      if (badge) badge.textContent = "Uses: k, c, x";
+      if (legendSpans[0]) legendSpans[0].innerHTML = '<span class="dot elastic-dot"></span>Spring — <span id="elasticPct">60%</span>';
+      if (legendSpans[1]) legendSpans[1].innerHTML = '<span class="dot viscous-dot"></span>Dashpot — <span id="viscousPct">40%</span>';
+    } else {
+      if (h3) h3.textContent = "Force decomposition";
+      if (subtitle) subtitle.textContent = "Elastic vs. viscous contribution";
+      if (badge) badge.textContent = "Uses: k, c, x, ẋ";
+      if (legendSpans[0]) legendSpans[0].innerHTML = '<span class="dot elastic-dot"></span>Elastic — <span id="elasticPct">60%</span>';
+      if (legendSpans[1]) legendSpans[1].innerHTML = '<span class="dot viscous-dot"></span>Viscous — <span id="viscousPct">40%</span>';
+    }
+    // Re-bind references because innerHTML replacement detached the old elements
+    els.elasticPct = document.getElementById("elasticPct");
+    els.viscousPct = document.getElementById("viscousPct");
+  }
+
+  // Decomposition calculation
   let pElastic = 50;
   let pViscous = 50;
-  if (total > 0) {
-    pElastic = Math.round((fElastic / total) * 100);
+  let fElastic = 0;
+  let fViscous = 0;
+  let total = 0;
+  let x_spring = 0;
+  let x_dashpot = 0;
+
+  if (modelType === "Maxwell") {
+    const tau = calculateRelaxationTime(k, c);
+    const v_m = Math.max(1e-6, v_effective_m);
+    const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
+    total = c * v_m * (1 - Math.exp(exponent));
+    x_spring = total / Math.max(1e-6, k);
+    x_dashpot = Math.max(0, x_m - x_spring);
+    
+    if (x_m > 0) {
+      pElastic = Math.round((x_spring / x_m) * 100);
+    } else {
+      pElastic = 100;
+    }
     pViscous = 100 - pElastic;
   } else {
-    pElastic = 0;
-    pViscous = 0;
+    fElastic = calculateElasticForce(k, x_m);
+    fViscous = calculateViscousForce(c, v_effective_m);
+    total = calculateTotalForce(fElastic, fViscous);
+    
+    if (total > 0) {
+      pElastic = Math.round((fElastic / total) * 100);
+      pViscous = 100 - pElastic;
+    } else {
+      pElastic = 0;
+      pViscous = 0;
+    }
   }
   
   if (els.elasticBar) els.elasticBar.style.width = pElastic + "%";
@@ -209,19 +304,36 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
 
   // Dynamic formula display
   if (els.dynamicFormula) {
-    els.dynamicFormula.innerHTML = `
-      <div style="font-size: 11px; color: var(--text-muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px;">
-        <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
-        <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
-        <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
-          F = (${k.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
-          F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
-          <strong>F = ${total.toFixed(3)} N</strong>
+    if (modelType === "Maxwell") {
+      els.dynamicFormula.innerHTML = `
+        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px;">
+          <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Strain Decomposition & Substitution:</div>
+          <div style="margin-bottom: 4px;">General: <strong>x<sub>spring</sub> = F / k, x<sub>dashpot</sub> = x<sub>m</sub> - x<sub>spring</sub></strong></div>
+          <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
+            F_current = ${total.toFixed(3)} N<br>
+            x_spring = ${x_spring.toFixed(6)} m (${pElastic}%)<br>
+            x_dashpot = ${x_dashpot.toFixed(6)} m (${pViscous}%)<br>
+            <strong>x<sub>spring</sub> + x<sub>dashpot</sub> = ${(x_spring + x_dashpot).toFixed(6)} m</strong> (Total: ${x_m.toFixed(6)} m)
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">This calculation uses your current slider values exactly (not affected by Monte Carlo).</div>
+          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
         </div>
-        <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">This calculation uses your current slider values exactly (not affected by Monte Carlo).</div>
-        ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
-      </div>
-    `;
+      `;
+    } else {
+      els.dynamicFormula.innerHTML = `
+        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px;">
+          <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
+          <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
+          <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
+            F = (${k.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
+            F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
+            <strong>F = ${total.toFixed(3)} N</strong>
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">This calculation uses your current slider values exactly (not affected by Monte Carlo).</div>
+          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
+        </div>
+      `;
+    }
   }
 
   // Live rampT calculations and formula note readout update (incorporating clamp bounds)
@@ -236,14 +348,14 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   }
 
   // Console verification
-  console.log("fElastic:", fElastic.toFixed(4), "N, fViscous:", fViscous.toFixed(4), "N, total:", total.toFixed(4), "N");
+  console.log("total force:", total.toFixed(4), "N");
 
   // Retrieve Monte Carlo state
   const mcOn = els.mcToggle && els.mcToggle.classList.contains("on");
 
   // Draw plots
-  drawDepthPlot(k, x, mcOn);
-  drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn);
+  drawDepthPlot(k, x, mcOn, modelType, c, v_effective);
+  drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType);
 
   // Schedule debounced bootstrap parameter updates (150ms delay)
   if (bootstrapTimeout) clearTimeout(bootstrapTimeout);

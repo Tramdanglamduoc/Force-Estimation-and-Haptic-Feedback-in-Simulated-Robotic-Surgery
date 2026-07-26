@@ -4,7 +4,7 @@ export function physicsTabHTML() {
       <div class="card">
         <span class="badge">Current stage</span>
         <h3>Physics model controls</h3>
-        <p class="sub" style="margin-bottom: 20px;">Kelvin-Voigt core: F = k&middot;x + c&middot;ẋ</p>
+        <p class="sub" id="modelFormulaText" style="margin-bottom: 20px;">Kelvin-Voigt core: F = k&middot;x + c&middot;ẋ</p>
         
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 12px;">Core model parameters</div>
         <div class="slider-row">
@@ -17,7 +17,7 @@ export function physicsTabHTML() {
         </div>
         <div class="slider-row" id="cSliderRow">
           <div class="label-row">
-            <span>Damping c (Ns/m)</span>
+            <span id="cLabelSpan">Damping c (parallel dashpot) (Ns/m)</span>
             <span class="val" id="cVal">10</span>
           </div>
           <div class="input-slider-container">
@@ -25,6 +25,16 @@ export function physicsTabHTML() {
             <input type="number" id="cInput" class="small-num-input" readonly disabled style="pointer-events: none; opacity: 0.7;">
           </div>
           <div id="cCalcSteps" class="calc-steps"></div>
+        </div>
+        
+        <div id="maxwellDerivedContainer" style="display: none; margin-top: 16px;">
+          <div class="slider-row" style="margin-bottom: 8px;">
+            <div class="label-row"><span>Relaxation time constant &tau; (s)</span><span class="val" id="tauVal">0.00</span></div>
+            <div id="tauCalcSteps" class="calc-steps"></div>
+          </div>
+          <div style="font-family: monospace; font-size: 11px; color: var(--navy); background: #FBFCFD; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; margin-top: 8px;" id="f0InfoLine">
+            F₀ (at start of hold) = 0.00 N
+          </div>
         </div>
         <div class="slider-row">
           <div class="label-row"><span>Indentation depth x (mm)</span><span class="val" id="xVal">5</span></div>

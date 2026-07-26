@@ -86,6 +86,14 @@ export function getElements() {
     totalTFormula: document.getElementById("totalTFormula"),
 
     paramPanelHeader: document.getElementById("paramPanelHeader"),
-    paramPanel: document.getElementById("paramPanel")
+    paramPanel: document.getElementById("paramPanel"),
+
+    modelTypeSelect: document.getElementById("modelType"),
+    modelFormulaText: document.getElementById("modelFormulaText"),
+    cLabelSpan: document.getElementById("cLabelSpan"),
+    maxwellDerivedContainer: document.getElementById("maxwellDerivedContainer"),
+    tauVal: document.getElementById("tauVal"),
+    tauCalcSteps: document.getElementById("tauCalcSteps"),
+    f0InfoLine: document.getElementById("f0InfoLine")
   };
 }

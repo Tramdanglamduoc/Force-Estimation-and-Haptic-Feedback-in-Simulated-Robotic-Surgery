@@ -51,7 +51,50 @@ export function nextGaussian() {
 }
 
 /**
- * Generate N=50 synthetic noisy points along the Kelvin-Voigt model curve
+ * Calculate the Maxwell relaxation time constant (tau = c / k)
+ */
+export function calculateRelaxationTime(k, c) {
+  return k > 0 ? c / k : 0;
+}
+
+/**
+ * Calculate Maxwell F0 initial condition at start of hold phase
+ */
+export function calculateMaxwellF0(c, v_m, rampT, tau) {
+  const exponent = tau > 0 ? -rampT / tau : 0;
+  return c * v_m * (1 - Math.exp(exponent));
+}
+
+/**
+ * Calculate analytical Maxwell force at a specific time t
+ */
+export function calculateMaxwellForce(t, k, c, xTarget, vTarget, holdDuration, rampMin, rampMax) {
+  const rampT = Math.min(rampMax, Math.max(rampMin, xTarget / vTarget));
+  const T = 2 * rampT + holdDuration;
+  const tau = calculateRelaxationTime(k, c);
+  
+  const xTarget_m = xTarget / 1000;
+  const v_m = rampT > 0 ? xTarget_m / rampT : 0;
+  
+  if (t < rampT) {
+    const exponent = tau > 0 ? -t / tau : 0;
+    return c * v_m * (1 - Math.exp(exponent));
+  } else if (t < T - rampT) {
+    const F0 = calculateMaxwellF0(c, v_m, rampT, tau);
+    const exponent = tau > 0 ? -(t - rampT) / tau : 0;
+    return F0 * Math.exp(exponent);
+  } else if (t <= T) {
+    const F0 = calculateMaxwellF0(c, v_m, rampT, tau);
+    const F_hold_end = tau > 0 ? F0 * Math.exp(-holdDuration / tau) : 0;
+    const t_start = rampT + holdDuration;
+    const exponent = tau > 0 ? -(t - t_start) / tau : 0;
+    return (F_hold_end + c * v_m) * Math.exp(exponent) - c * v_m;
+  }
+  return 0;
+}
+
+/**
+ * Generate N=50 synthetic noisy points along the active model curve
  * @param {number} k stiffness (N/m)
  * @param {number} c damping (Ns/m)
  * @param {number} xTarget target indentation depth (mm)
@@ -59,9 +102,10 @@ export function nextGaussian() {
  * @param {number} holdDuration hold duration (s)
  * @param {number} rampMin min ramp time (s)
  * @param {number} rampMax max ramp time (s)
+ * @param {string} modelType model type ("Kelvin-Voigt" or "Maxwell")
  * @returns {Array<{x: number, v: number, f: number, t: number}>} noisy dataset
  */
-export function generateSyntheticData(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax) {
+export function generateSyntheticData(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, modelType = "Kelvin-Voigt") {
   const rampT = Math.min(rampMax, Math.max(rampMin, xTarget / vTarget));
   const T = 2 * rampT + holdDuration;
   
@@ -89,7 +133,12 @@ export function generateSyntheticData(k, c, xTarget, vTarget, holdDuration, ramp
     const x_m = x_mm / 1000;
     const v_ms = v_mms / 1000;
     
-    const f_theoretical = k * x_m + c * v_ms;
+    let f_theoretical = 0;
+    if (modelType === "Maxwell") {
+      f_theoretical = calculateMaxwellForce(t, k, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+    } else {
+      f_theoretical = k * x_m + c * v_ms;
+    }
     
     // Add Gaussian noise (SD = 5% of theoretical force value)
     const sd = Math.max(0.001, Math.abs(f_theoretical) * 0.05);
@@ -102,12 +151,70 @@ export function generateSyntheticData(k, c, xTarget, vTarget, holdDuration, ramp
 }
 
 /**
- * Linear least-squares regression to fit k and c simultaneously on Kelvin-Voigt model:
- * F = k * x + c * v
- * @param {Array<{x: number, v: number, f: number}>} data dataset
+ * Linear least-squares regression to fit k and c simultaneously on active model
+ * @param {Array<{x: number, v: number, f: number, t: number}>} data dataset
+ * @param {string} modelType active model type
+ * @param {number} xTarget target indentation depth (mm)
+ * @param {number} vTarget target indentation velocity (mm/s)
+ * @param {number} holdDuration hold duration (s)
+ * @param {number} rampMin min ramp time (s)
+ * @param {number} rampMax max ramp time (s)
  * @returns {{k: number, c: number}} fitted parameters
  */
-export function fitLeastSquares(data) {
+export function fitLeastSquares(data, modelType = "Kelvin-Voigt", xTarget = 5, vTarget = 5, holdDuration = 1.0, rampMin = 0.1, rampMax = 1.2) {
+  if (modelType === "Maxwell") {
+    const rampT = Math.min(rampMax, Math.max(rampMin, xTarget / vTarget));
+    const holdStart = rampT;
+    const holdEnd = rampT + holdDuration;
+    
+    // Filter the hold phase data points where force is strictly positive for logarithm
+    const holdPoints = data.filter(d => d.t >= holdStart && d.t < holdEnd && d.f > 0.0001);
+    
+    let slope = 0;
+    let intercept = 0;
+    const n = holdPoints.length;
+    
+    if (n >= 2) {
+      let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+      for (let i = 0; i < n; i++) {
+        const dt = holdPoints[i].t - holdStart;
+        const y = Math.log(holdPoints[i].f);
+        sumX += dt;
+        sumY += y;
+        sumXX += dt * dt;
+        sumXY += dt * y;
+      }
+      const denom = n * sumXX - sumX * sumX;
+      if (Math.abs(denom) > 1e-12) {
+        slope = (n * sumXY - sumX * sumY) / denom;
+        intercept = (sumY - slope * sumX) / n;
+      } else {
+        slope = -1.0;
+        intercept = Math.log(Math.max(1e-4, holdPoints[0].f));
+      }
+    } else {
+      // Fallback if hold points are insufficient or noisy
+      slope = -1.0;
+      const validPoints = data.filter(d => d.f > 0.0001);
+      intercept = Math.log(Math.max(1e-4, validPoints[0]?.f || 1.0));
+    }
+    
+    const tau = slope < 0 ? -1 / slope : 0.1;
+    const F0 = Math.exp(intercept);
+    
+    const xTarget_m = xTarget / 1000;
+    const v_m = rampT > 0 ? xTarget_m / rampT : 0.001;
+    const oneMinusExp = 1 - Math.exp(-rampT / Math.max(1e-6, tau));
+    
+    let c_fit = F0 / (v_m * Math.max(1e-6, oneMinusExp));
+    let k_fit = c_fit / Math.max(1e-6, tau);
+    
+    return {
+      k: Math.max(0.01, Math.min(2000.0, k_fit)),
+      c: Math.max(0.0, Math.min(1000.0, c_fit))
+    };
+  }
+
   let Sxx = 0, Sxv = 0, Svv = 0, SxF = 0, SvF = 0;
   for (let i = 0; i < data.length; i++) {
     const d = data[i];
@@ -130,8 +237,6 @@ export function fitLeastSquares(data) {
     c_fit = Svv > 0 ? SvF / Svv : 0;
   }
   
-  // Enforce physical constraints: stiffness and damping must be non-negative.
-  // Using a simultaneous fit for stiffness k and damping c ensures unbiased parameter estimations.
   return {
     k: Math.max(0.1, k_fit),
     c: Math.max(0.0, c_fit)
@@ -144,7 +249,7 @@ export function fitLeastSquares(data) {
  * @param {number} B number of bootstrap iterations
  * @returns {{k_boot: number[], c_boot: number[]}} bootstrap parameter arrays
  */
-export function runBootstrap(data, B = 1000) {
+export function runBootstrap(data, B = 1000, modelType = "Kelvin-Voigt", xTarget = 5, vTarget = 5, holdDuration = 1.0, rampMin = 0.1, rampMax = 1.2) {
   const k_boot = [];
   const c_boot = [];
   const N = data.length;
@@ -155,7 +260,7 @@ export function runBootstrap(data, B = 1000) {
       const idx = Math.floor(Math.random() * N);
       resampled.push(data[idx]);
     }
-    const fit = fitLeastSquares(resampled);
+    const fit = fitLeastSquares(resampled, modelType, xTarget, vTarget, holdDuration, rampMin, rampMax);
     k_boot.push(fit.k);
     c_boot.push(fit.c);
   }

@@ -1,4 +1,4 @@
-import { mmToM } from './physics.js';
+import { mmToM, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce } from './physics.js';
 
 // Layout geometry constants
 const PAD_X = 55;
@@ -145,7 +145,7 @@ function getPercentilesWithNoise(fVal, N = 50) {
  * Draw Force vs Depth plot
  * Shows elastic response across indentation range
  */
-export function drawDepthPlot(k, xCurrent, mcOn) {
+export function drawDepthPlot(k, xCurrent, mcOn, modelType = "Kelvin-Voigt", c = 10, vEffective = 5) {
   const canvas = document.getElementById("plotDepth");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -170,13 +170,26 @@ export function drawDepthPlot(k, xCurrent, mcOn) {
   // Draw axes
   drawAxes(ctx, W, H);
   
+  // Define force function based on selected model type
+  const getForceAtDepth = (xVal) => {
+    if (modelType === "Maxwell") {
+      const tau = calculateRelaxationTime(k, c);
+      const v_m = Math.max(1e-6, vEffective / 1000);
+      const x_m = xVal / 1000;
+      const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
+      return c * v_m * (1 - Math.exp(exponent));
+    } else {
+      return k * mmToM(xVal);
+    }
+  };
+
   // Draw shaded confidence band if Monte Carlo is ON
   if (mcOn) {
     const minPts = [];
     const maxPts = [];
     for (let i = 0; i <= 100; i++) {
       const x = (i / 100) * xMax;
-      const f = k * mmToM(x);
+      const f = getForceAtDepth(x);
       const [fMinCI, fMaxCI] = getPercentilesWithNoise(f);
       
       const px = PAD_X + (x / xMax) * plotW;
@@ -201,13 +214,13 @@ export function drawDepthPlot(k, xCurrent, mcOn) {
     ctx.fill();
   }
   
-  // Draw slope line F = k * x_m
+  // Draw curve
   ctx.strokeStyle = "#378ADD";
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (let i = 0; i <= 100; i++) {
     const x = (i / 100) * xMax;
-    const f = k * mmToM(x);
+    const f = getForceAtDepth(x);
     const px = PAD_X + (x / xMax) * plotW;
     const py = H - PAD_Y - (f / fMax) * plotH;
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
@@ -215,7 +228,7 @@ export function drawDepthPlot(k, xCurrent, mcOn) {
   ctx.stroke();
   
   // Current point
-  const fCurrent = k * mmToM(xCurrent);
+  const fCurrent = getForceAtDepth(xCurrent);
   const px = PAD_X + (xCurrent / xMax) * plotW;
   const py = H - PAD_Y - (fCurrent / fMax) * plotH;
   ctx.fillStyle = "#0F6E56";
@@ -223,6 +236,14 @@ export function drawDepthPlot(k, xCurrent, mcOn) {
   ctx.arc(px, py, 4, 0, 2 * Math.PI);
   ctx.fill();
   
+  // Model footnote
+  if (modelType === "Maxwell") {
+    ctx.fillStyle = "#B06A18";
+    ctx.font = "italic 9px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("shown at current velocity — Maxwell response depends on loading rate", W - RIGHT_MARGIN, TOP_MARGIN - 8);
+  }
+
   // Axis titles
   drawAxisTitles(ctx, W, H, "depth (mm)", "force (N)");
 }
@@ -231,7 +252,7 @@ export function drawDepthPlot(k, xCurrent, mcOn) {
  * Draw Force vs Time plot
  * Shows one indent-hold-release cycle
  */
-export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, mcOn) {
+export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, mcOn, modelType = "Kelvin-Voigt") {
   const canvas = document.getElementById("plotTime");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -266,7 +287,12 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
   for (let i = 0; i <= 100; i++) {
     const t = (i / 100) * T;
     const x = xOfT(t), v = vOfT(t);
-    const f = k * mmToM(x) + c * mmToM(v);
+    let f = 0;
+    if (modelType === "Maxwell") {
+      f = calculateMaxwellForce(t, k, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+    } else {
+      f = k * mmToM(x) + c * mmToM(v);
+    }
     pts.push([t, f]);
     
     if (mcOn) {

@@ -70,4 +70,7 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
   if (els.toolTypeSelect) {
     els.toolTypeSelect.addEventListener("change", handleToolChangeFn);
   }
+  if (els.modelTypeSelect) {
+    els.modelTypeSelect.addEventListener("change", updateFn);
+  }
 }

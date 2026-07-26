@@ -55,11 +55,13 @@ export function runBootstrapAndUpdateUI(els) {
     currentK = (E_Pa * A_m2) / h_m;
   }
 
+  const modelType = els.modelTypeSelect ? els.modelTypeSelect.value : "Kelvin-Voigt";
+
   // Step 1: Generate synthetic noisy data using 5% relative SD
-  const data = generateSyntheticData(currentK, currentC, currentX, currentV, currentHold, currentRampMin, currentRampMax);
+  const data = generateSyntheticData(currentK, currentC, currentX, currentV, currentHold, currentRampMin, currentRampMax, modelType);
 
   // Step 2 & 3: Run B=1000 bootstrap resamples using simultaneous 2x2 linear least-squares regression
-  const { k_boot, c_boot } = runBootstrap(data, 1000);
+  const { k_boot, c_boot } = runBootstrap(data, 1000, modelType, currentX, currentV, currentHold, currentRampMin, currentRampMax);
 
   // Step 4: Compute 95% confidence intervals (2.5th and 97.5th percentiles)
   const [kMinCI, kMaxCI] = getPercentiles(k_boot, 2.5, 97.5);
@@ -142,10 +144,21 @@ export function runBootstrapAndUpdateUI(els) {
     
     const pElastic_boot = [];
     for (let i = 0; i < k_boot.length; i++) {
-      const fe = k_boot[i] * x_m;
-      const fv = c_boot[i] * v_effective_m;
-      const tot = fe + fv;
-      pElastic_boot.push(tot > 0 ? (fe / tot) * 100 : 0);
+      let pe = 50;
+      if (modelType === "Maxwell") {
+        const tau = c_boot[i] / Math.max(1e-6, k_boot[i]);
+        const v_m = Math.max(1e-6, v_effective_m);
+        const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
+        const tot = c_boot[i] * v_m * (1 - Math.exp(exponent));
+        const xs = tot / Math.max(1e-6, k_boot[i]);
+        pe = x_m > 0 ? (xs / x_m) * 100 : 100;
+      } else {
+        const fe = k_boot[i] * x_m;
+        const fv = c_boot[i] * v_effective_m;
+        const tot = fe + fv;
+        pe = tot > 0 ? (fe / tot) * 100 : 0;
+      }
+      pElastic_boot.push(pe);
     }
     
     // Calculate mean and SD
@@ -168,14 +181,24 @@ export function runBootstrapAndUpdateUI(els) {
   const x_m = mmToM(currentX);
   const v_effective = calculateEffectiveVelocity(currentX, currentV, currentRampMin, currentRampMax);
   const v_effective_m = mmToM(v_effective);
-  const fElastic = calculateElasticForce(currentK, x_m);
-  const fViscous = calculateViscousForce(currentC, v_effective_m);
-  const total = fElastic + fViscous;
+  
   let pElastic = 50;
-  if (total > 0) {
-    pElastic = Math.round((fElastic / total) * 100);
+  if (modelType === "Maxwell") {
+    const tau = currentC / Math.max(1e-6, currentK);
+    const v_m = Math.max(1e-6, v_effective_m);
+    const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
+    const tot = currentC * v_m * (1 - Math.exp(exponent));
+    const xs = tot / Math.max(1e-6, currentK);
+    pElastic = x_m > 0 ? Math.round((xs / x_m) * 100) : 100;
   } else {
-    pElastic = 0;
+    const fElastic = calculateElasticForce(currentK, x_m);
+    const fViscous = calculateViscousForce(currentC, v_effective_m);
+    const total = fElastic + fViscous;
+    if (total > 0) {
+      pElastic = Math.round((fElastic / total) * 100);
+    } else {
+      pElastic = 0;
+    }
   }
   const pViscous = 100 - pElastic;
 
