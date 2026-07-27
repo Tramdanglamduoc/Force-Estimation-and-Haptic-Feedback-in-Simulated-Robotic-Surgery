@@ -55,19 +55,31 @@ export function structureTabHTML() {
             To change this value, go back to the Physics model tab.
           </p>
         </div>
+      </div> <!-- End of controls card -->
 
-      <div class="card" style="display: flex; flex-direction: column; align-items: center;">
-        <h3 style="align-self: flex-start; margin-bottom: 4px;">2D cross-section diagram</h3>
-        <p class="sub" style="align-self: flex-start; margin-bottom: 16px;">Live Side View of Indentation and Tissue Deformation</p>
-        
-        <canvas id="tissueCanvas" width="500" height="360" style="width: 100%; max-width: 500px; height: 360px;"></canvas>
-        
-        <div style="width: 100%; margin-top: 16px; font-family: monospace; font-size: 11px; background: #FBFCFD; border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px;">
-          <div style="font-weight: 700; color: var(--navy); margin-bottom: 6px;">Dynamic Stiffness & Force Readout:</div>
-          <div>k_effective: <span id="kEffectiveDisplay" style="font-weight:700;">0.0</span> N/m</div>
-          <div>Inclusion: <span id="kInclusionDisplay">0.0</span> N/m</div>
-          <div style="margin-top: 4px; color: var(--text-muted); font-style: italic;">
-            Note: Organ colors/shapes are cosmetic illustrations. Visible surface dimpling is calculated directly from current stiffness k_effective.
+      <div> <!-- Start of right column container -->
+        <div class="plots-row">
+          <div class="card" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
+            <h3 style="align-self: flex-start; margin-bottom: 4px;">2D cross-section diagram</h3>
+            <p class="sub" style="align-self: flex-start; margin-bottom: 16px;">Live Side View of Indentation and Tissue Deformation</p>
+            <canvas id="tissueCanvas" width="500" height="360" style="width: 100%; max-width: 500px; height: 360px;"></canvas>
+          </div>
+          
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0;">
+            <div>
+              <h3>Dynamic Stiffness & Readout</h3>
+              <p class="sub" style="margin-bottom: 16px;">Calculated stiffness of tissue layers</p>
+              
+              <div style="width: 100%; font-family: monospace; font-size: 11px; background: #FBFCFD; border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; line-height: 1.6;">
+                <div style="font-weight: 700; color: var(--navy); margin-bottom: 6px;">Stiffness & Force:</div>
+                <div style="margin-bottom: 4px;">k_effective: <span id="kEffectiveDisplay" style="font-weight:700;">0.0</span> N/m</div>
+                <div>Inclusion: <span id="kInclusionDisplay">N/A (Uniform)</span></div>
+              </div>
+            </div>
+            
+            <p class="note" style="margin-top: 16px; line-height: 1.4;">
+              Note: Organ colors/shapes are cosmetic illustrations. Visible surface dimpling is calculated directly from current stiffness k_effective.
+            </p>
           </div>
         </div>
       </div>
