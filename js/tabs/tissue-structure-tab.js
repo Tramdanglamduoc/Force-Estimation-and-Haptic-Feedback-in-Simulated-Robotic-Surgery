@@ -131,12 +131,25 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   // --- 2D Drawing Configuration ---
   const surfaceY = 100;
   const tissueBottomY = 280;
-  
-  // Scale indentation depth: 0-10mm -> 0-100px
-  const indentPx = x_depth * 10;
-  const inclusionY = surfaceY + D_inclusion * 10;
   const toolTipX = W / 2;
+
+  // Scale factors are illustrative/compressed for visual clarity, not literal mass ratios
+  // (real liver:kidney:spleen mass ratio is far more extreme, ~10:1:1)
+  const organScale = { Liver: 1.0, Kidney: 0.7, Spleen: 0.6 }[tissueType] || 1.0;
+  
+  // Depth-to-pixel conversion scales with organScale — depth values are visually
+  // proportioned per-organ, not on a shared absolute mm-to-px ruler across organs.
+  const indentPx = x_depth * 10 * organScale;
+
+  // Same scaling note as indentPx: inclusion depth is relative to this organ's
+  // canvas size, not directly comparable in pixels across different organs.
+  const inclusionY = surfaceY + D_inclusion * 10 * organScale;
+
   const toolTipY = surfaceY + indentPx;
+
+  // Scale horizontal limits for the organ drawing
+  const leftX = toolTipX - 200 * organScale;
+  const rightX = toolTipX + 200 * organScale;
 
   // Organ style settings (colors and details are cosmetic illustrations, not literature-cited)
   let fillColor = "#8B3A3A"; // Liver reddish-brown
@@ -158,6 +171,8 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   ctx.fillRect(0, 0, W, H);
 
   // Draw label indicating organ name
+  // Font size intentionally NOT scaled by organScale — only position/anchor point
+  // is adjusted, to keep labels readable across all organ sizes.
   ctx.font = "bold 11px sans-serif";
   ctx.fillStyle = "var(--text-muted)";
   ctx.fillText(`Organ: ${organName}`, 20, 30);
@@ -169,40 +184,62 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   ctx.beginPath();
   
   // Left corner
-  ctx.moveTo(50, surfaceY);
+  ctx.moveTo(leftX, surfaceY);
 
   // Surface profile with dimpling (deformation scales inversely with k_effective)
   // Deformed depth is indentPx, but lateral transition depends on stiffness
-  const dimpleWidth = Math.max(40, Math.min(160, 100 * (k_background / k_effective)));
+  const dimpleWidth = Math.max(40 * organScale, Math.min(160 * organScale, 100 * organScale * (k_background / k_effective)));
   
   ctx.lineTo(toolTipX - dimpleWidth, surfaceY);
   ctx.bezierCurveTo(
     toolTipX - dimpleWidth / 2, surfaceY,
-    toolTipX - 15, toolTipY,
+    toolTipX - 15 * organScale, toolTipY,
     toolTipX, toolTipY
   );
   ctx.bezierCurveTo(
-    toolTipX + 15, toolTipY,
+    toolTipX + 15 * organScale, toolTipY,
     toolTipX + dimpleWidth / 2, surfaceY,
     toolTipX + dimpleWidth, surfaceY
   );
   
   // Right corner
-  ctx.lineTo(W - 50, surfaceY);
+  ctx.lineTo(rightX, surfaceY);
+
+  const scaledBottomY = surfaceY + (tissueBottomY - surfaceY) * organScale;
 
   // Draw organ-specific shapes
   if (tissueType === "Kidney") {
-    // Bean-like lower boundary
-    ctx.bezierCurveTo(W - 20, tissueBottomY - 50, W - 150, tissueBottomY + 30, toolTipX, tissueBottomY - 10);
-    ctx.bezierCurveTo(150, tissueBottomY + 30, 20, tissueBottomY - 50, 50, surfaceY);
+    // Bean-like lower boundary scaled relative to center (toolTipX, surfaceY)
+    ctx.bezierCurveTo(
+      toolTipX + (W - 20 - toolTipX) * organScale, surfaceY + (tissueBottomY - 50 - surfaceY) * organScale,
+      toolTipX + (W - 150 - toolTipX) * organScale, surfaceY + (tissueBottomY + 30 - surfaceY) * organScale,
+      toolTipX, scaledBottomY - 10 * organScale
+    );
+    ctx.bezierCurveTo(
+      toolTipX + (150 - toolTipX) * organScale, surfaceY + (tissueBottomY + 30 - surfaceY) * organScale,
+      toolTipX + (20 - toolTipX) * organScale, surfaceY + (tissueBottomY - 50 - surfaceY) * organScale,
+      leftX, surfaceY
+    );
   } else if (tissueType === "Liver") {
-    // Wedge-like lower boundary
-    ctx.lineTo(W - 80, tissueBottomY + 10);
-    ctx.bezierCurveTo(toolTipX + 100, tissueBottomY + 20, toolTipX - 100, tissueBottomY - 40, 50, surfaceY);
+    // Wedge-like lower boundary scaled relative to center (toolTipX, surfaceY)
+    ctx.lineTo(toolTipX + (W - 80 - toolTipX) * organScale, surfaceY + (tissueBottomY + 10 - surfaceY) * organScale);
+    ctx.bezierCurveTo(
+      toolTipX + 100 * organScale, surfaceY + (tissueBottomY + 20 - surfaceY) * organScale,
+      toolTipX - 100 * organScale, surfaceY + (tissueBottomY - 40 - surfaceY) * organScale,
+      leftX, surfaceY
+    );
   } else {
-    // Spleen: smooth oval boundary
-    ctx.bezierCurveTo(W - 30, tissueBottomY - 40, W - 100, tissueBottomY, toolTipX, tissueBottomY);
-    ctx.bezierCurveTo(100, tissueBottomY, 30, tissueBottomY - 40, 50, surfaceY);
+    // Spleen: smooth oval boundary scaled relative to center (toolTipX, surfaceY)
+    ctx.bezierCurveTo(
+      toolTipX + (W - 30 - toolTipX) * organScale, surfaceY + (tissueBottomY - 40 - surfaceY) * organScale,
+      toolTipX + (W - 100 - toolTipX) * organScale, surfaceY + (tissueBottomY - surfaceY) * organScale,
+      toolTipX, scaledBottomY
+    );
+    ctx.bezierCurveTo(
+      toolTipX + (100 - toolTipX) * organScale, surfaceY + (tissueBottomY - surfaceY) * organScale,
+      toolTipX + (30 - toolTipX) * organScale, surfaceY + (tissueBottomY - 40 - surfaceY) * organScale,
+      leftX, surfaceY
+    );
   }
 
   ctx.closePath();
@@ -217,12 +254,12 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   if (tissueType === "Kidney") {
     ctx.fillStyle = "rgba(107, 43, 43, 0.4)";
     for (let i = 0; i < 5; i++) {
-      const cx = 120 + i * 65;
-      const cy = 200 + Math.sin(i) * 20;
+      const cx = toolTipX + (120 + i * 65 - toolTipX) * organScale;
+      const cy = surfaceY + (200 + Math.sin(i) * 20 - surfaceY) * organScale;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx - 20, cy + 30);
-      ctx.lineTo(cx + 20, cy + 30);
+      ctx.lineTo(cx - 20 * organScale, cy + 30 * organScale);
+      ctx.lineTo(cx + 20 * organScale, cy + 30 * organScale);
       ctx.closePath();
       ctx.fill();
     }
@@ -234,7 +271,7 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
     
     // Position of inclusion is (toolTipX, inclusionY)
     ctx.beginPath();
-    ctx.arc(toolTipX, inclusionY, 22, 0, 2 * Math.PI);
+    ctx.arc(toolTipX, inclusionY, 22 * organScale, 0, 2 * Math.PI);
     
     if (isStiffer) {
       // Tumor: firm bumpy gray nodule
@@ -249,10 +286,10 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
       ctx.fillStyle = "#8FA9BB";
       for (let j = 0; j < 6; j++) {
         const angle = (j / 6) * Math.PI * 2;
-        const bx = toolTipX + Math.cos(angle) * 14;
-        const by = inclusionY + Math.sin(angle) * 14;
+        const bx = toolTipX + Math.cos(angle) * 14 * organScale;
+        const by = inclusionY + Math.sin(angle) * 14 * organScale;
         ctx.beginPath();
-        ctx.arc(bx, by, 6, 0, 2 * Math.PI);
+        ctx.arc(bx, by, 6 * organScale, 0, 2 * Math.PI);
         ctx.fill();
       }
     } else {
@@ -264,16 +301,18 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
       
       // Inner lumen/blood
       ctx.beginPath();
-      ctx.arc(toolTipX, inclusionY, 14, 0, 2 * Math.PI);
+      ctx.arc(toolTipX, inclusionY, 14 * organScale, 0, 2 * Math.PI);
       ctx.fillStyle = "#A93226";
       ctx.fill();
     }
 
     // Draw inclusion label/bounds
+    // Font size intentionally NOT scaled by organScale — only position/anchor point
+    // is adjusted, to keep labels readable across all organ sizes.
     ctx.font = "italic 9px sans-serif";
     ctx.fillStyle = isStiffer ? "#4F5D65" : "#D9534F";
     ctx.textAlign = "center";
-    ctx.fillText(isStiffer ? "Stiff tumor" : "Soft vessel", toolTipX, inclusionY - 26);
+    ctx.fillText(isStiffer ? "Stiff tumor" : "Soft vessel", toolTipX, inclusionY - 26 * organScale);
   }
 
   // Restore context before drawing the tool tip/probe

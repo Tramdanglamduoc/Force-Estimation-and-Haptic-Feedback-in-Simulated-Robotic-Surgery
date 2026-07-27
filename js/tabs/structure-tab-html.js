@@ -79,6 +79,8 @@ export function structureTabHTML() {
             
             <p class="note" style="margin-top: 16px; line-height: 1.4;">
               Note: Organ colors/shapes are cosmetic illustrations. Visible surface dimpling is calculated directly from current stiffness k_effective.
+              <br><br>
+              *Note: Organ sizes and cross-sections are illustrative and relatively proportioned (Liver > Kidney/Spleen) for comparison, not millimeter-perfect anatomical models.*
             </p>
           </div>
         </div>
