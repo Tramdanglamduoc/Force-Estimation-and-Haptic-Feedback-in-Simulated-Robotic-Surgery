@@ -47,8 +47,8 @@ export function initTissueStructure(els, updateFn) {
   if (els.presetTumor) {
     els.presetTumor.addEventListener("click", () => {
       if (els.stiffnessRatioSlider) {
-        els.stiffnessRatioSlider.value = "5.0";
-        if (els.stiffnessRatioVal) els.stiffnessRatioVal.textContent = "5.0x";
+        els.stiffnessRatioSlider.value = "6.0";
+        if (els.stiffnessRatioVal) els.stiffnessRatioVal.textContent = "6.0x";
       }
       updateFn();
     });
@@ -64,11 +64,15 @@ export function initTissueStructure(els, updateFn) {
     });
   }
 
-  // 5. Wiring Temperature radio buttons
-  const tempRadios = document.getElementsByName("tempMode");
-  tempRadios.forEach(radio => {
-    radio.addEventListener("change", updateFn);
-  });
+  if (els.presetVeryStiff) {
+    els.presetVeryStiff.addEventListener("click", () => {
+      if (els.stiffnessRatioSlider) {
+        els.stiffnessRatioSlider.value = "20.0";
+        if (els.stiffnessRatioVal) els.stiffnessRatioVal.textContent = "20.0x";
+      }
+      updateFn();
+    });
+  }
 }
 
 /**
@@ -94,23 +98,6 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   const D_inclusion = els.inclusionDepthSlider ? parseFloat(els.inclusionDepthSlider.value) : 5.0;
   const stiffness_ratio = els.stiffnessRatioSlider ? parseFloat(els.stiffnessRatioSlider.value) : 1.0;
   
-  // Temperature factor
-  let tempFactor = 1.0;
-  let tempText = "Normal (~37°C)";
-  const tempRadios = document.getElementsByName("tempMode");
-  let activeTemp = "normal";
-  tempRadios.forEach(r => {
-    if (r.checked) activeTemp = r.value;
-  });
-
-  if (activeTemp === "cold") {
-    tempFactor = 1.4; // Illustrative hardening
-    tempText = "Cold preservation (~20°C)";
-  } else if (activeTemp === "hot") {
-    tempFactor = 0.6; // Illustrative softening
-    tempText = "Thermal/cautery (~45°C)";
-  }
-
   // Calculate stiffnesses
   const k_inclusion = k_background * stiffness_ratio;
   
@@ -129,9 +116,6 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
       k_effective = k_inclusion;
     }
   }
-
-  // Apply temperature correction factor (illustrative)
-  k_effective = k_effective * tempFactor;
 
   // Update text readouts
   if (els.kBackgroundDisplay) {
@@ -173,10 +157,10 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   ctx.fillStyle = "#F7F9FA";
   ctx.fillRect(0, 0, W, H);
 
-  // Draw label indicating organ name and temperature context
+  // Draw label indicating organ name
   ctx.font = "bold 11px sans-serif";
   ctx.fillStyle = "var(--text-muted)";
-  ctx.fillText(`Organ: ${organName} | Context: ${tempText}`, 20, 30);
+  ctx.fillText(`Organ: ${organName}`, 20, 30);
 
   // Draw tissue block with surface deformation
   ctx.fillStyle = fillColor;

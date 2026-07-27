@@ -32,11 +32,14 @@ export function structureTabHTML() {
               <span class="val" id="stiffnessRatioVal">1.0x</span>
             </div>
             <div class="input-slider-container">
-              <input type="range" id="stiffnessRatioSlider" min="0.2" max="10.0" step="0.1" value="1.0">
+              <input type="range" id="stiffnessRatioSlider" min="0.2" max="30.0" step="0.1" value="1.0">
             </div>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-              <button id="presetTumor" class="small-btn" style="flex: 1; padding: 6px; font-size: 10.5px; font-weight: 600; background: #EAF3EF; color: var(--teal); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Tumor-like (stiffer)</button>
-              <button id="presetVessel" class="small-btn" style="flex: 1; padding: 6px; font-size: 10.5px; font-weight: 600; background: #FDF2E4; color: #B06A18; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Vessel-like (softer)</button>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              <div style="display: flex; gap: 6px;">
+                <button id="presetVessel" class="small-btn" style="flex: 1; padding: 6px; font-size: 10.5px; font-weight: 600; background: #FDF2E4; color: #B06A18; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Vessel-like (softer)</button>
+                <button id="presetTumor" class="small-btn" style="flex: 1; padding: 6px; font-size: 10.5px; font-weight: 600; background: #EAF3EF; color: var(--teal); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Tumor-like (stiffer)</button>
+              </div>
+              <button id="presetVeryStiff" class="small-btn" style="width: 100%; padding: 6px; font-size: 10.5px; font-weight: 600; background: #EDF1F3; color: var(--navy); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Very stiff/fibrotic (much stiffer)</button>
             </div>
             <p class="note" style="margin-top: 8px;">
               Presets are illustrative/approximate, NOT literature-measured values. k_inclusion = k_background × stiffness_ratio.
@@ -52,32 +55,6 @@ export function structureTabHTML() {
             To change this value, go back to the Physics model tab.
           </p>
         </div>
-
-        <!-- Collapsible Advanced Section -->
-        <details style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 12px;">
-          <summary style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); cursor: pointer; outline: none;">Advanced (optional)</summary>
-          <div style="margin-top: 12px;">
-            <div style="font-size: 11px; font-weight: 600; color: var(--navy); margin-bottom: 8px;">Temperature Mode</div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="radio" name="tempMode" value="normal" checked>
-                Normal Patient (~37°C)
-              </label>
-              <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="radio" name="tempMode" value="cold">
-                Cold preservation (~20°C)
-              </label>
-              <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="radio" name="tempMode" value="hot">
-                Thermal/cautery (~45°C)
-              </label>
-            </div>
-            <p class="note" style="margin-top: 8px; line-height: 1.4;">
-              Simulates special surgical contexts (donor organ preservation or electrocautery tissue damage), not casual patient body temperature variation.
-            </p>
-          </div>
-        </details>
-      </div>
 
       <div class="card" style="display: flex; flex-direction: column; align-items: center;">
         <h3 style="align-self: flex-start; margin-bottom: 4px;">2D cross-section diagram</h3>

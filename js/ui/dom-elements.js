@@ -111,6 +111,7 @@ export function getElements() {
     stiffnessRatioVal: document.getElementById("stiffnessRatioVal"),
     presetTumor: document.getElementById("presetTumor"),
     presetVessel: document.getElementById("presetVessel"),
+    presetVeryStiff: document.getElementById("presetVeryStiff"),
     kBackgroundDisplay: document.getElementById("kBackgroundDisplay"),
     tissueCanvas: document.getElementById("tissueCanvas"),
     kEffectiveDisplay: document.getElementById("kEffectiveDisplay"),
