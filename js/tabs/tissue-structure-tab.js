@@ -188,16 +188,16 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
 
   // Surface profile with dimpling (deformation scales inversely with k_effective)
   // Deformed depth is indentPx, but lateral transition depends on stiffness
-  const dimpleWidth = Math.max(40 * organScale, Math.min(160 * organScale, 100 * organScale * (k_background / k_effective)));
+  const dimpleWidth = Math.max(15 * organScale, Math.min(160 * organScale, 100 * organScale * Math.sqrt(k_background / k_effective)));
   
   ctx.lineTo(toolTipX - dimpleWidth, surfaceY);
   ctx.bezierCurveTo(
     toolTipX - dimpleWidth / 2, surfaceY,
-    toolTipX - 15 * organScale, toolTipY,
+    toolTipX - 0.15 * dimpleWidth, toolTipY,
     toolTipX, toolTipY
   );
   ctx.bezierCurveTo(
-    toolTipX + 15 * organScale, toolTipY,
+    toolTipX + 0.15 * dimpleWidth, toolTipY,
     toolTipX + dimpleWidth / 2, surfaceY,
     toolTipX + dimpleWidth, surfaceY
   );
