@@ -209,6 +209,10 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   ctx.fill();
   ctx.stroke();
 
+  // Save context and clip future drawings to the active deformed tissue path
+  ctx.save();
+  ctx.clip();
+
   // Draw Kidney internal cortex/medulla structures (cosmetic details)
   if (tissueType === "Kidney") {
     ctx.fillStyle = "rgba(107, 43, 43, 0.4)";
@@ -271,6 +275,9 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
     ctx.textAlign = "center";
     ctx.fillText(isStiffer ? "Stiff tumor" : "Soft vessel", toolTipX, inclusionY - 26);
   }
+
+  // Restore context before drawing the tool tip/probe
+  ctx.restore();
 
   // Draw tool tip pressing down
   ctx.strokeStyle = "#3A4E5E";
