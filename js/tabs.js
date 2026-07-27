@@ -1,14 +1,11 @@
 import { physicsTabHTML } from './tabs/physics-tab-html.js';
 import { structureTabHTML } from './tabs/structure-tab-html.js';
+import { sensorTabHTML } from './tabs/sensor-tab-html.js';
 
 export const tabs = [
   { id: "physics", label: "Physics model", ready: true },
   { id: "structure", label: "Tissue structure", ready: true },
-  { id: "sensor", label: "Sensor simulation", ready: false, items: [
-    "Gaussian noise standard deviation slider",
-    "Sensor/communication latency slider (ms)",
-    "Raw signal vs. true force vs. PINN-recovered estimate plot"
-  ] },
+  { id: "sensor", label: "Sensor simulation", ready: true },
   { id: "validation", label: "Validation", ready: false, items: [
     "PINN prediction vs. synthetic ground truth (CoppeliaSim)",
     "RMSE / R² metric cards",
@@ -77,6 +74,8 @@ export function initTabs() {
       panel.innerHTML = physicsTabHTML();
     } else if (t.id === "structure") {
       panel.innerHTML = structureTabHTML();
+    } else if (t.id === "sensor") {
+      panel.innerHTML = sensorTabHTML();
     } else {
       panel.innerHTML = `
         <div class="card placeholder-card">
@@ -89,3 +88,4 @@ export function initTabs() {
     tabContent.appendChild(panel);
   });
 }
+

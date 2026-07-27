@@ -10,7 +10,14 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
     { slider: els.jawAreaSlider, input: els.jawAreaInput },
     { slider: els.thicknessSlider, input: els.thicknessInput },
     { slider: els.eSlider, input: els.eInput },
-    { slider: els.cMaterialSlider, input: els.cMaterialInput }
+    { slider: els.cMaterialSlider, input: els.cMaterialInput },
+    { slider: els.sensorNoiseSlider, input: els.sensorNoiseInput },
+    { slider: els.sensorLatencySlider, input: els.sensorLatencyInput },
+    { slider: els.sensorRateSlider, input: els.sensorRateInput },
+    { slider: els.sensorBiasSlider, input: els.sensorBiasInput },
+    { slider: els.sensorQuantSlider, input: els.sensorQuantInput },
+    { slider: els.sensorSatSlider, input: els.sensorSatInput },
+    { slider: els.sensorDropoutSlider, input: els.sensorDropoutInput }
   ];
 
   // 1. One-time initial setup bounds sync loop
@@ -21,12 +28,27 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
     input.step = slider.step || "1";
   });
 
+  // Track if user manually modified F_max
+  if (els.sensorSatSlider) {
+    els.sensorSatSlider.addEventListener("input", () => {
+      els.sensorSatSlider.dataset.userModified = "true";
+    });
+  }
+  if (els.sensorSatInput) {
+    els.sensorSatInput.addEventListener("input", () => {
+      if (els.sensorSatSlider) els.sensorSatSlider.dataset.userModified = "true";
+    });
+  }
+
   // 2. Attach standard input listeners to the sliders
   [
     els.kSlider, els.cSlider, els.xSlider, els.vSlider, els.holdSlider,
     els.rampMinSlider, els.rampMaxSlider, els.nuSlider, els.contactRadiusSlider,
     els.lSlider, els.jawAreaSlider, els.thicknessSlider, els.eSlider, els.cMaterialSlider,
-    els.cycleCountSlider
+    els.cycleCountSlider,
+    els.sensorNoiseSlider, els.sensorLatencySlider, els.sensorRateSlider,
+    els.sensorBiasSlider, els.sensorQuantSlider, els.sensorSatSlider,
+    els.sensorDropoutSlider
   ].forEach(s => {
     if (s) s.addEventListener("input", updateFn);
   });

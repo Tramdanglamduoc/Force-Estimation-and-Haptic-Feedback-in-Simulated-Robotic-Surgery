@@ -1,5 +1,5 @@
 import { runBootstrapAndUpdateUI } from './bootstrap-ci.js';
-import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
+import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, drawSensorPlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
 import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce } from '../physics.js';
@@ -368,6 +368,157 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
 
   // Draw Tissue structure canvas
   updateTissueStructure(els, k, x, selectedTissue);
+
+  // Calculate kEffective
+  const isHetero = els.heteroToggle && els.heteroToggle.classList.contains("on");
+  const D_inclusion = els.inclusionDepthSlider ? parseFloat(els.inclusionDepthSlider.value) : 5.0;
+  const stiffness_ratio = els.stiffnessRatioSlider ? parseFloat(els.stiffnessRatioSlider.value) : 1.0;
+  const k_inclusion = k * stiffness_ratio;
+  const d = Math.max(0, D_inclusion - x);
+  const D_ZONE = 2.0;
+  let kEffective = k;
+  if (isHetero) {
+    if (d >= D_ZONE) {
+      kEffective = k;
+    } else if (d > 0) {
+      const interp = 0.5 * (1 + Math.cos((Math.PI * d) / D_ZONE));
+      kEffective = k + (k_inclusion - k) * interp;
+    } else {
+      kEffective = k_inclusion;
+    }
+  }
+
+  // Compute global max peak force to set F_max dynamically
+  const rampT_FMax = calculateRampT(x, v_effective, rampMin, rampMax);
+  const Tc_FMax = 2 * rampT_FMax + holdDuration;
+  const N_cycles_FMax = (isCyclicOn && cycleCount > 0) ? cycleCount : 1;
+  const T_total_FMax = N_cycles_FMax * Tc_FMax;
+  
+  function xOfT_FMax(t) {
+    if (t >= T_total_FMax) return 0;
+    const tInCycle = t % Tc_FMax;
+    if (tInCycle < rampT_FMax) return x * (tInCycle / rampT_FMax);
+    if (tInCycle < Tc_FMax - rampT_FMax) return x;
+    return x * Math.max(0, (Tc_FMax - tInCycle) / rampT_FMax);
+  }
+  function vOfT_FMax(t) {
+    if (t >= T_total_FMax) return 0;
+    const tInCycle = t % Tc_FMax;
+    if (tInCycle < rampT_FMax) return x / rampT_FMax;
+    if (tInCycle < Tc_FMax - rampT_FMax) return 0;
+    if (tInCycle <= Tc_FMax) return -x / rampT_FMax;
+    return 0;
+  }
+  function getFTrue_FMax(t) {
+    const x_val = xOfT_FMax(t), v_val = vOfT_FMax(t);
+    if (modelType === "Maxwell") {
+      const tInCycle = t % Tc_FMax;
+      return calculateMaxwellForce(tInCycle, kEffective, c, x, v_effective, holdDuration, rampMin, rampMax);
+    } else {
+      return kEffective * mmToM(x_val) + c * mmToM(v_val);
+    }
+  }
+
+  let peakF = 0;
+  const num_eval_fmax = 100;
+  for (let idx = 0; idx <= num_eval_fmax; idx++) {
+    const t = (idx / num_eval_fmax) * T_total_FMax;
+    const f_tr = getFTrue_FMax(t);
+    if (f_tr > peakF) peakF = f_tr;
+  }
+
+  const F_max_calculated = peakF * 1.5;
+  const F_max_clamped = Math.max(0.005, Math.min(1.0, F_max_calculated));
+  
+  const userHasModifiedFMax = els.sensorSatSlider && els.sensorSatSlider.dataset.userModified === "true";
+  
+  if (!userHasModifiedFMax && els.sensorSatSlider) {
+    els.sensorSatSlider.value = F_max_clamped.toFixed(3);
+    if (els.sensorSatInput) els.sensorSatInput.value = F_max_clamped.toFixed(3);
+    
+    if (els.sensorSatNote) {
+      els.sensorSatNote.style.display = (F_max_calculated < 0.005 || F_max_calculated > 1.0) ? "block" : "none";
+    }
+  } else if (userHasModifiedFMax && els.sensorSatSlider) {
+    const manualVal = parseFloat(els.sensorSatSlider.value);
+    if (els.sensorSatNote) {
+      els.sensorSatNote.style.display = (manualVal <= 0.005 || manualVal >= 1.0) ? "block" : "none";
+    }
+  }
+
+  // Dynamic Quantization Constraint (runs on load and on update)
+  if (els.sensorQuantSlider) {
+    const current_F_max = parseFloat(els.sensorSatSlider.value) || 0.5;
+    const q_max = Math.min(0.02, current_F_max / 5.0);
+    els.sensorQuantSlider.max = q_max;
+    if (els.sensorQuantInput) els.sensorQuantInput.max = q_max;
+    
+    let current_q_val = parseFloat(els.sensorQuantSlider.value);
+    if (current_q_val > q_max) {
+      els.sensorQuantSlider.value = q_max;
+      if (els.sensorQuantInput) els.sensorQuantInput.value = q_max;
+      current_q_val = q_max;
+    }
+    
+    if (els.sensorQuantVal) {
+      els.sensorQuantVal.textContent = current_q_val.toFixed(4);
+    }
+  }
+
+  // Sync sensor slider text readouts and fills
+  if (els.sensorNoiseSlider && els.sensorNoiseVal) {
+    els.sensorNoiseVal.textContent = parseFloat(els.sensorNoiseSlider.value).toFixed(3);
+  }
+  if (els.sensorLatencySlider && els.sensorLatencyVal) {
+    els.sensorLatencyVal.textContent = parseInt(els.sensorLatencySlider.value);
+  }
+  if (els.sensorRateSlider && els.sensorRateVal) {
+    els.sensorRateVal.textContent = parseInt(els.sensorRateSlider.value);
+  }
+  if (els.sensorBiasSlider && els.sensorBiasVal) {
+    els.sensorBiasVal.textContent = parseFloat(els.sensorBiasSlider.value).toFixed(3);
+  }
+  if (els.sensorSatSlider && els.sensorSatVal) {
+    els.sensorSatVal.textContent = parseFloat(els.sensorSatSlider.value).toFixed(3);
+  }
+  if (els.sensorDropoutSlider && els.sensorDropoutVal) {
+    els.sensorDropoutVal.textContent = parseInt(els.sensorDropoutSlider.value);
+  }
+  
+  [
+    els.sensorNoiseSlider, els.sensorLatencySlider, els.sensorRateSlider,
+    els.sensorBiasSlider, els.sensorQuantSlider, els.sensorSatSlider,
+    els.sensorDropoutSlider
+  ].forEach(s => {
+    if (s) {
+      const min = parseFloat(s.min) || 0;
+      const max = parseFloat(s.max) || 100;
+      const val = parseFloat(s.value) || 0;
+      const pct = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
+      s.style.setProperty('--fill-pct', `${pct}%`);
+      
+      const inputId = s.id.replace("Slider", "Input");
+      const input = document.getElementById(inputId);
+      if (input && document.activeElement !== input) {
+        if (s.id.includes("Latency") || s.id.includes("Rate") || s.id.includes("Dropout")) {
+          input.value = Math.round(val);
+        } else if (s.id.includes("Quant")) {
+          input.value = val.toFixed(4);
+        } else {
+          input.value = val.toFixed(3);
+        }
+      }
+    }
+  });
+
+  // Draw plots
+  drawDepthPlot(k, x, mcOn, modelType, c, v_effective);
+  drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType, isCyclicOn, cycleCount);
+  drawHysteresisPlot(k, c, x, v, rampMin, rampMax, mcOn);
+  
+  if (els.plotSensor) {
+    drawSensorPlot(kEffective, c, x, v_effective, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els);
+  }
 
   // Schedule debounced bootstrap parameter updates (150ms delay)
   if (bootstrapTimeout) clearTimeout(bootstrapTimeout);

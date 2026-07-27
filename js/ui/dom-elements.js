@@ -115,6 +115,32 @@ export function getElements() {
     kBackgroundDisplay: document.getElementById("kBackgroundDisplay"),
     tissueCanvas: document.getElementById("tissueCanvas"),
     kEffectiveDisplay: document.getElementById("kEffectiveDisplay"),
-    kInclusionDisplay: document.getElementById("kInclusionDisplay")
+    kInclusionDisplay: document.getElementById("kInclusionDisplay"),
+
+    // Sensor simulation tab elements
+    sensorNoiseSlider: document.getElementById("sensorNoiseSlider"),
+    sensorNoiseInput: document.getElementById("sensorNoiseInput"),
+    sensorNoiseVal: document.getElementById("sensorNoiseVal"),
+    sensorLatencySlider: document.getElementById("sensorLatencySlider"),
+    sensorLatencyInput: document.getElementById("sensorLatencyInput"),
+    sensorLatencyVal: document.getElementById("sensorLatencyVal"),
+    sensorRateSlider: document.getElementById("sensorRateSlider"),
+    sensorRateInput: document.getElementById("sensorRateInput"),
+    sensorRateVal: document.getElementById("sensorRateVal"),
+    sensorBiasSlider: document.getElementById("sensorBiasSlider"),
+    sensorBiasInput: document.getElementById("sensorBiasInput"),
+    sensorBiasVal: document.getElementById("sensorBiasVal"),
+    sensorQuantSlider: document.getElementById("sensorQuantSlider"),
+    sensorQuantInput: document.getElementById("sensorQuantInput"),
+    sensorQuantVal: document.getElementById("sensorQuantVal"),
+    sensorSatSlider: document.getElementById("sensorSatSlider"),
+    sensorSatInput: document.getElementById("sensorSatInput"),
+    sensorSatVal: document.getElementById("sensorSatVal"),
+    sensorSatNote: document.getElementById("sensorSatNote"),
+    sensorDropoutSlider: document.getElementById("sensorDropoutSlider"),
+    sensorDropoutInput: document.getElementById("sensorDropoutInput"),
+    sensorDropoutVal: document.getElementById("sensorDropoutVal"),
+    plotSensor: document.getElementById("plotSensor"),
+    sensorRmseDisplay: document.getElementById("sensorRmseDisplay")
   };
 }

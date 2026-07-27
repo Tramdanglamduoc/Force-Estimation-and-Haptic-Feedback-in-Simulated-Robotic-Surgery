@@ -531,3 +531,235 @@ export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcO
   // Axis titles
   drawAxisTitles(ctx, W, H, "depth (mm)", "force (N)");
 }
+
+// Seeded PRNG Mulberry32
+function mulberry32(a) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+}
+
+// Seeded Gaussian PRNG
+function nextGaussianSeeded(prng) {
+  let u = 0, v = 0;
+  while (u === 0) u = prng();
+  while (v === 0) v = prng();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+/**
+ * Draw Sensor Simulation Plot
+ */
+export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els) {
+  const canvas = els.plotSensor;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const plotW = W - PAD_X - RIGHT_MARGIN;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+  
+  ctx.clearRect(0, 0, W, H);
+
+  // Initialize seeded PRNG
+  const prng = mulberry32(42);
+
+  const rampT = calculateRampT(xTarget, vTarget, rampMin, rampMax);
+  const Tc = 2 * rampT + holdDuration;
+  const N_cycles = (isCyclicOn && cycleCount > 0) ? cycleCount : 1;
+  const T_total = N_cycles * Tc;
+
+  function xOfT(t) {
+    if (t >= T_total) return 0;
+    const tInCycle = t % Tc;
+    if (tInCycle < rampT) return xTarget * (tInCycle / rampT);
+    if (tInCycle < Tc - rampT) return xTarget;
+    return xTarget * Math.max(0, (Tc - tInCycle) / rampT);
+  }
+
+  function vOfT(t) {
+    if (t >= T_total) return 0;
+    const tInCycle = t % Tc;
+    if (tInCycle < rampT) return xTarget / rampT;
+    if (tInCycle < Tc - rampT) return 0;
+    if (tInCycle <= Tc) return -xTarget / rampT;
+    return 0;
+  }
+
+  function getFTrue(t) {
+    const x = xOfT(t), v = vOfT(t);
+    if (modelType === "Maxwell") {
+      const tInCycle = t % Tc;
+      return calculateMaxwellForce(tInCycle, kEffective, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+    } else {
+      return kEffective * mmToM(x) + c * mmToM(v);
+    }
+  }
+
+  // Sensor parameters
+  const rate = parseFloat(els.sensorRateSlider.value) || 100;
+  const dt_sample = 1.0 / rate;
+  const sigma = parseFloat(els.sensorNoiseSlider.value) || 0;
+  const latency = (parseFloat(els.sensorLatencySlider.value) || 0) / 1000.0;
+  const bias = parseFloat(els.sensorBiasSlider.value) || 0;
+  const step_size = parseFloat(els.sensorQuantSlider.value) || 0;
+  const F_max = parseFloat(els.sensorSatSlider.value) || 0.5;
+  const dropout_prob = (parseFloat(els.sensorDropoutSlider.value) || 0) / 100.0;
+
+  // Generate sensor discrete samples
+  const samples = [];
+  let prev_sensor = null;
+  const total_samples = Math.floor(T_total / dt_sample);
+  for (let i = 0; i <= total_samples; i++) {
+    const t_sample = i * dt_sample;
+    
+    // 1. Delay & Sample
+    const t_delayed = Math.max(0, t_sample - latency);
+    const f_sampled = getFTrue(t_delayed);
+    
+    // 2. Bias
+    const f_biased = f_sampled + bias;
+    
+    // 3. Gaussian Noise
+    const noise = nextGaussianSeeded(prng) * sigma;
+    const f_noisy = f_biased + noise;
+    
+    // 4. Quantization
+    let f_quantized = f_noisy;
+    if (step_size > 0) {
+      f_quantized = Math.round(f_noisy / step_size) * step_size;
+    }
+    
+    // 5. Saturation Clip
+    let f_sensor_val = Math.max(0, Math.min(F_max, f_quantized));
+    
+    // 6. Packet Dropout (bypassed at i=0)
+    let is_dropout = false;
+    if (i > 0 && dropout_prob > 0) {
+      const rand = prng();
+      if (rand < dropout_prob) {
+        is_dropout = true;
+      }
+    }
+    
+    if (is_dropout && prev_sensor !== null) {
+      f_sensor_val = prev_sensor;
+    } else {
+      prev_sensor = f_sensor_val;
+    }
+    
+    samples.push({ t: t_sample, f: f_sensor_val });
+  }
+
+  // ZOH interpolation helper
+  function getFSensor(t) {
+    if (samples.length === 0) return 0;
+    const idx = Math.floor(t / dt_sample);
+    const clampedIdx = Math.max(0, Math.min(samples.length - 1, idx));
+    return samples[clampedIdx].f;
+  }
+
+  // Scale Y axis based on F_true and F_sensor curves
+  let minF = Infinity;
+  let maxF = -Infinity;
+  const num_eval = 200;
+  for (let i = 0; i <= num_eval; i++) {
+    const t = (i / num_eval) * T_total;
+    const f_tr = getFTrue(t);
+    const f_sens = getFSensor(t);
+    if (f_tr < minF) minF = f_tr;
+    if (f_tr > maxF) maxF = f_tr;
+    if (f_sens < minF) minF = f_sens;
+    if (f_sens > maxF) maxF = f_sens;
+  }
+  
+  if (minF === maxF) {
+    minF = -0.05;
+    maxF = 0.05;
+  }
+  const fRange = maxF - minF;
+  const padding = fRange > 0 ? fRange * 0.1 : 0.05;
+  const fMin = minF - padding;
+  const fMax = maxF + padding;
+
+  // Y ticks and grid lines
+  drawYAxis(ctx, H, plotH, W, fMin, fMax, 3, false);
+  
+  // Highlight zero line
+  drawZeroLine(ctx, W, H, plotH, fMin, fMax);
+  
+  // X ticks
+  drawXTicks(ctx, H, plotW, 0, T_total, 6, 1, "s");
+  
+  // Draw axes
+  drawAxes(ctx, W, H);
+
+  // Draw F_true (smooth teal line)
+  ctx.strokeStyle = "#1D9E75";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const renderPts = 500;
+  for (let i = 0; i <= renderPts; i++) {
+    const t = (i / renderPts) * T_total;
+    const f = getFTrue(t);
+    const px = PAD_X + (t / T_total) * plotW;
+    const py = H - PAD_Y - ((f - fMin) / (fMax - fMin)) * plotH;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Draw F_sensor (stepped red ZOH line)
+  ctx.strokeStyle = "#E06666";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    const px = PAD_X + (s.t / T_total) * plotW;
+    const py = H - PAD_Y - ((s.f - fMin) / (fMax - fMin)) * plotH;
+    
+    if (i === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      const prev_s = samples[i - 1];
+      const px_prev = PAD_X + (s.t / T_total) * plotW;
+      const py_prev = H - PAD_Y - ((prev_s.f - fMin) / (fMax - fMin)) * plotH;
+      ctx.lineTo(px_prev, py_prev);
+      ctx.lineTo(px, py);
+    }
+  }
+  if (samples.length > 0) {
+    const last_s = samples[samples.length - 1];
+    const px_end = PAD_X + plotW;
+    const py_end = H - PAD_Y - ((last_s.f - fMin) / (fMax - fMin)) * plotH;
+    ctx.lineTo(px_end, py_end);
+  }
+  ctx.stroke();
+
+  // Calculate RMSE
+  const rmse_eval_pts = Math.max(10, Math.floor(100 * T_total));
+  let sumSqError = 0;
+  for (let i = 0; i < rmse_eval_pts; i++) {
+    const t = (i / (rmse_eval_pts - 1)) * T_total;
+    const f_tr = getFTrue(t);
+    const f_sens = getFSensor(t);
+    const err = f_tr - f_sens;
+    sumSqError += err * err;
+  }
+  const rmse = Math.sqrt(sumSqError / rmse_eval_pts);
+  if (els.sensorRmseDisplay) {
+    els.sensorRmseDisplay.textContent = rmse.toFixed(4) + " N";
+  }
+
+  // Draw legend
+  ctx.font = "8px sans-serif";
+  ctx.fillStyle = "#1D9E75";
+  ctx.fillText("Ground truth F_true(t)", PAD_X + 10, TOP_MARGIN - 8);
+  ctx.fillStyle = "#E06666";
+  ctx.fillText("Simulated sensor F_sensor(t)", PAD_X + 120, TOP_MARGIN - 8);
+
+  // Axis titles
+  drawAxisTitles(ctx, W, H, "time (s)", "force (N)");
+}
+
