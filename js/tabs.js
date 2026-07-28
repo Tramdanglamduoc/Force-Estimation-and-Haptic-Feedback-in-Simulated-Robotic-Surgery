@@ -6,11 +6,6 @@ export const tabs = [
   { id: "physics", label: "Physics model", ready: true },
   { id: "structure", label: "Tissue structure", ready: true },
   { id: "sensor", label: "Sensor simulation", ready: true },
-  { id: "validation", label: "Validation", ready: false, items: [
-    "PINN prediction vs. synthetic ground truth (CoppeliaSim)",
-    "RMSE / R² metric cards",
-    "Residual plot"
-  ] },
   { id: "comparison", label: "Model comparison", ready: false, items: [
     "Ranking table: PINN vs. LSTM/MLP baseline vs. pure physics model",
     "Compared across scenarios from Tool & contact / Tissue structure tabs"
