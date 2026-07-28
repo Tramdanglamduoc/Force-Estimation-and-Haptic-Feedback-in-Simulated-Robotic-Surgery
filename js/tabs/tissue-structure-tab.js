@@ -2,6 +2,8 @@
  * Tissue Structure Tab Controller & 2D Canvas Renderer
  */
 
+import { calculateEffectiveStiffness } from '../physics.js';
+
 // Interaction zone for stiffness change (arbitrary value for visual smoothness)
 const D_ZONE = 2.0; 
 
@@ -101,21 +103,7 @@ export function updateTissueStructure(els, k_background, x_depth, tissueType) {
   // Calculate stiffnesses
   const k_inclusion = k_background * stiffness_ratio;
   
-  // Calculate distance d to inclusion
-  const d = Math.max(0, D_inclusion - x_depth);
-  
-  let k_effective = k_background;
-  if (isHetero) {
-    // Option B smooth cosine interpolation (default value for visual smoothness, not literature-backed)
-    if (d >= D_ZONE) {
-      k_effective = k_background;
-    } else if (d > 0) {
-      const interp = 0.5 * (1 + Math.cos((Math.PI * d) / D_ZONE));
-      k_effective = k_background + (k_inclusion - k_background) * interp;
-    } else {
-      k_effective = k_inclusion;
-    }
-  }
+  const k_effective = calculateEffectiveStiffness(x_depth, k_background, isHetero, D_inclusion, stiffness_ratio);
 
   // Update text readouts
   if (els.kBackgroundDisplay) {

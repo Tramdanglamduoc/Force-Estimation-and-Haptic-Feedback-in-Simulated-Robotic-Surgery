@@ -1,4 +1,4 @@
-import { mmToM, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce } from './physics.js';
+import { mmToM, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce, calculateEffectiveStiffness } from './physics.js';
 
 // Layout geometry constants
 const PAD_X = 55;
@@ -170,16 +170,24 @@ export function drawDepthPlot(k, xCurrent, mcOn, modelType = "Kelvin-Voigt", c =
   // Draw axes
   drawAxes(ctx, W, H);
   
+  const heteroToggle = document.getElementById("heteroToggle");
+  const isHetero = heteroToggle && heteroToggle.classList.contains("on");
+  const inclusionDepthSlider = document.getElementById("inclusionDepthSlider");
+  const D_inclusion = inclusionDepthSlider ? parseFloat(inclusionDepthSlider.value) : 5.0;
+  const stiffnessRatioSlider = document.getElementById("stiffnessRatioSlider");
+  const stiffness_ratio = stiffnessRatioSlider ? parseFloat(stiffnessRatioSlider.value) : 1.0;
+
   // Define force function based on selected model type
   const getForceAtDepth = (xVal) => {
+    const kEff = calculateEffectiveStiffness(xVal, k, isHetero, D_inclusion, stiffness_ratio);
     if (modelType === "Maxwell") {
-      const tau = calculateRelaxationTime(k, c);
+      const tau = calculateRelaxationTime(kEff, c);
       const v_m = Math.max(1e-6, vEffective / 1000);
       const x_m = xVal / 1000;
       const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
       return c * v_m * (1 - Math.exp(exponent));
     } else {
-      return k * mmToM(xVal);
+      return kEff * mmToM(xVal);
     }
   };
 
@@ -284,6 +292,13 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
     return 0;
   }
   
+  const heteroToggle = document.getElementById("heteroToggle");
+  const isHetero = heteroToggle && heteroToggle.classList.contains("on");
+  const inclusionDepthSlider = document.getElementById("inclusionDepthSlider");
+  const D_inclusion = inclusionDepthSlider ? parseFloat(inclusionDepthSlider.value) : 5.0;
+  const stiffnessRatioSlider = document.getElementById("stiffnessRatioSlider");
+  const stiffness_ratio = stiffnessRatioSlider ? parseFloat(stiffnessRatioSlider.value) : 1.0;
+
   // Calculate points and find range
   const pts = [];
   const minPts = [];
@@ -293,12 +308,13 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
   for (let i = 0; i <= 100; i++) {
     const t = (i / 100) * T;
     const x = xOfT(t), v = vOfT(t);
+    const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
     let f = 0;
     if (modelType === "Maxwell") {
       const tInCycle = t % Tc;
-      f = calculateMaxwellForce(tInCycle, k, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+      f = calculateMaxwellForce(tInCycle, kEff, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
     } else {
-      f = k * mmToM(x) + c * mmToM(v);
+      f = kEff * mmToM(x) + c * mmToM(v);
     }
     pts.push([t, f]);
     
@@ -395,6 +411,13 @@ export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcO
   const v_effective = calculateEffectiveVelocity(xTarget, vTarget, rampMin, rampMax);
   const v_effective_m = mmToM(v_effective);
   
+  const heteroToggle = document.getElementById("heteroToggle");
+  const isHetero = heteroToggle && heteroToggle.classList.contains("on");
+  const inclusionDepthSlider = document.getElementById("inclusionDepthSlider");
+  const D_inclusion = inclusionDepthSlider ? parseFloat(inclusionDepthSlider.value) : 5.0;
+  const stiffnessRatioSlider = document.getElementById("stiffnessRatioSlider");
+  const stiffness_ratio = stiffnessRatioSlider ? parseFloat(stiffnessRatioSlider.value) : 1.0;
+
   // Generate points for one loading-unloading cycle (excluding hold phase)
   // Loading phase: x goes from 0 to xTarget, ẋ = v_effective
   // Unloading phase: x goes from xTarget back to 0, ẋ = -v_effective
@@ -405,13 +428,15 @@ export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcO
   // 50 points for loading
   for (let i = 0; i <= 50; i++) {
     const x = (i / 50) * xTarget;
-    const f = k * mmToM(x) + c * v_effective_m;
+    const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
+    const f = kEff * mmToM(x) + c * v_effective_m;
     pts.push({ x, f, phase: 'loading' });
   }
   // 50 points for unloading
   for (let i = 0; i <= 50; i++) {
     const x = xTarget - (i / 50) * xTarget;
-    const f = k * mmToM(x) - c * v_effective_m;
+    const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
+    const f = kEff * mmToM(x) - c * v_effective_m;
     pts.push({ x, f, phase: 'unloading' });
   }
   
@@ -556,49 +581,8 @@ function nextGaussianSeeded(prng) {
 export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els) {
   const canvas = els.plotSensor;
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height;
-  const plotW = W - PAD_X - RIGHT_MARGIN;
-  const plotH = H - PAD_Y - TOP_MARGIN;
-  
-  ctx.clearRect(0, 0, W, H);
 
-  // Initialize seeded PRNG
-  const prng = mulberry32(42);
-
-  const rampT = calculateRampT(xTarget, vTarget, rampMin, rampMax);
-  const Tc = 2 * rampT + holdDuration;
-  const N_cycles = (isCyclicOn && cycleCount > 0) ? cycleCount : 1;
-  const T_total = N_cycles * Tc;
-
-  function xOfT(t) {
-    if (t >= T_total) return 0;
-    const tInCycle = t % Tc;
-    if (tInCycle < rampT) return xTarget * (tInCycle / rampT);
-    if (tInCycle < Tc - rampT) return xTarget;
-    return xTarget * Math.max(0, (Tc - tInCycle) / rampT);
-  }
-
-  function vOfT(t) {
-    if (t >= T_total) return 0;
-    const tInCycle = t % Tc;
-    if (tInCycle < rampT) return xTarget / rampT;
-    if (tInCycle < Tc - rampT) return 0;
-    if (tInCycle <= Tc) return -xTarget / rampT;
-    return 0;
-  }
-
-  function getFTrue(t) {
-    const x = xOfT(t), v = vOfT(t);
-    if (modelType === "Maxwell") {
-      const tInCycle = t % Tc;
-      return calculateMaxwellForce(tInCycle, kEffective, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
-    } else {
-      return kEffective * mmToM(x) + c * mmToM(v);
-    }
-  }
-
-  // Sensor parameters
+  // Retrieve parameters
   const rate = parseFloat(els.sensorRateSlider.value) || 100;
   const dt_sample = 1.0 / rate;
   const sigma = parseFloat(els.sensorNoiseSlider.value) || 0;
@@ -608,156 +592,346 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
   const F_max = parseFloat(els.sensorSatSlider.value) || 0.5;
   const dropout_prob = (parseFloat(els.sensorDropoutSlider.value) || 0) / 100.0;
 
-  // Generate sensor discrete samples
-  const samples = [];
-  let prev_sensor = null;
-  const total_samples = Math.floor(T_total / dt_sample);
-  for (let i = 0; i <= total_samples; i++) {
-    const t_sample = i * dt_sample;
-    
-    // 1. Delay & Sample
-    const t_delayed = Math.max(0, t_sample - latency);
-    const f_sampled = getFTrue(t_delayed);
-    
-    // 2. Bias
-    const f_biased = f_sampled + bias;
-    
-    // 3. Gaussian Noise
-    const noise = nextGaussianSeeded(prng) * sigma;
-    const f_noisy = f_biased + noise;
-    
-    // 4. Quantization
-    let f_quantized = f_noisy;
-    if (step_size > 0) {
-      f_quantized = Math.round(f_noisy / step_size) * step_size;
+  // Cache invalidation key
+  const cachedKey = `${kEffective}_${c}_${xTarget}_${vTarget}_${holdDuration}_${rampMin}_${rampMax}_${modelType}_${isCyclicOn}_${cycleCount}_${rate}_${sigma}_${latency}_${bias}_${step_size}_${F_max}_${dropout_prob}`;
+
+  if (!canvas.datasetCache || canvas.datasetCache.key !== cachedKey) {
+    // 1. Log dropout slider details for Bug 2 diagnosis
+    const dropout_raw = parseFloat(els.sensorDropoutSlider.value) || 0;
+    console.log("drawSensorPlot: received dropout_raw =", dropout_raw, "dropout_prob =", dropout_prob);
+
+    // Initialize seeded PRNG
+    const prng = mulberry32(42);
+
+    const rampT = calculateRampT(xTarget, vTarget, rampMin, rampMax);
+    const Tc = 2 * rampT + holdDuration;
+    const N_cycles = (isCyclicOn && cycleCount > 0) ? cycleCount : 1;
+    const T_total = N_cycles * Tc;
+
+    // Retrieve parameters for dynamic stiffness calculation
+    const heteroToggle = document.getElementById("heteroToggle");
+    const isHetero = heteroToggle && heteroToggle.classList.contains("on");
+    const inclusionDepthSlider = document.getElementById("inclusionDepthSlider");
+    const D_inclusion = inclusionDepthSlider ? parseFloat(inclusionDepthSlider.value) : 5.0;
+    const stiffnessRatioSlider = document.getElementById("stiffnessRatioSlider");
+    const stiffness_ratio = stiffnessRatioSlider ? parseFloat(stiffnessRatioSlider.value) : 1.0;
+    const kSlider = document.getElementById("kSlider");
+    const k_background = kSlider ? parseFloat(kSlider.value) : kEffective;
+
+    function xOfT(t) {
+      if (t >= T_total) return 0;
+      const tInCycle = t % Tc;
+      if (tInCycle < rampT) return xTarget * (tInCycle / rampT);
+      if (tInCycle < Tc - rampT) return xTarget;
+      return xTarget * Math.max(0, (Tc - tInCycle) / rampT);
     }
-    
-    // 5. Saturation Clip
-    let f_sensor_val = Math.max(0, Math.min(F_max, f_quantized));
-    
-    // 6. Packet Dropout (bypassed at i=0)
-    let is_dropout = false;
-    if (i > 0 && dropout_prob > 0) {
-      const rand = prng();
-      if (rand < dropout_prob) {
-        is_dropout = true;
+
+    function vOfT(t) {
+      if (t >= T_total) return 0;
+      const tInCycle = t % Tc;
+      if (tInCycle < rampT) return xTarget / rampT;
+      if (tInCycle < Tc - rampT) return 0;
+      if (tInCycle <= Tc) return -xTarget / rampT;
+      return 0;
+    }
+
+    function getFTrue(t) {
+      const x = xOfT(t), v = vOfT(t);
+      const kEff = calculateEffectiveStiffness(x, k_background, isHetero, D_inclusion, stiffness_ratio);
+      if (modelType === "Maxwell") {
+        const tInCycle = t % Tc;
+        return calculateMaxwellForce(tInCycle, kEff, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+      } else {
+        return kEff * mmToM(x) + c * mmToM(v);
       }
     }
-    
-    if (is_dropout && prev_sensor !== null) {
-      f_sensor_val = prev_sensor;
-    } else {
-      prev_sensor = f_sensor_val;
+
+    // Generate sensor discrete samples
+    const samples = [];
+    let prev_sensor = null;
+    const total_samples = Math.floor(T_total / dt_sample);
+    let held_count = 0;
+
+    for (let i = 0; i <= total_samples; i++) {
+      const t_sample = i * dt_sample;
+      
+      // 1. Delay & Sample
+      const t_delayed = Math.max(0, t_sample - latency);
+      const f_sampled = getFTrue(t_delayed);
+      
+      // 2. Bias
+      const f_biased = f_sampled + bias;
+      
+      // 3. Gaussian Noise
+      const noise = nextGaussianSeeded(prng) * sigma;
+      const f_noisy = f_biased + noise;
+      
+      // 4. Quantization
+      let f_quantized = f_noisy;
+      if (step_size > 0) {
+        f_quantized = Math.round(f_noisy / step_size) * step_size;
+      }
+      
+      // 5. Saturation Clip
+      let f_sensor_val = Math.max(0, Math.min(F_max, f_quantized));
+      
+      // 6. Packet Dropout (bypassed at i=0)
+      let is_dropout = false;
+      if (i > 0 && dropout_prob > 0) {
+        const rand = prng();
+        if (rand < dropout_prob) {
+          is_dropout = true;
+          held_count++;
+        }
+      }
+      
+      if (is_dropout && prev_sensor !== null) {
+        f_sensor_val = prev_sensor;
+      } else {
+        prev_sensor = f_sensor_val;
+      }
+      
+      samples.push({ t: t_sample, f: f_sensor_val });
     }
-    
-    samples.push({ t: t_sample, f: f_sensor_val });
+
+    console.log("drawSensorPlot: loop finished. total samples =", total_samples, "held (dropped) samples =", held_count);
+
+    // ZOH interpolation helper
+    function getFSensor(t) {
+      if (samples.length === 0) return 0;
+      const idx = Math.floor(t / dt_sample);
+      const clampedIdx = Math.max(0, Math.min(samples.length - 1, idx));
+      return samples[clampedIdx].f;
+    }
+
+    // Precompute F_true curve points for rendering (e.g. 500 points)
+    const f_true_pts = [];
+    const renderPts = 500;
+    for (let i = 0; i <= renderPts; i++) {
+      const t = (i / renderPts) * T_total;
+      f_true_pts.push({ t: t, f: getFTrue(t) });
+    }
+
+    // Calculate RMSE (overall)
+    const rmse_eval_pts = Math.max(10, Math.floor(100 * T_total));
+    let sumSqError = 0;
+    for (let i = 0; i < rmse_eval_pts; i++) {
+      const t = (i / (rmse_eval_pts - 1)) * T_total;
+      const f_tr = getFTrue(t);
+      const f_sens = getFSensor(t);
+      const err = f_tr - f_sens;
+      sumSqError += err * err;
+    }
+    const rmse = Math.sqrt(sumSqError / rmse_eval_pts);
+
+    // Store in cache
+    canvas.datasetCache = {
+      key: cachedKey,
+      samples: samples,
+      f_true_pts: f_true_pts,
+      rmse: rmse,
+      T_total: T_total,
+      dt_sample: dt_sample
+    };
+
+    // Reset zoom state
+    canvas.zoomState = { tMin: 0, tMax: T_total };
   }
 
-  // ZOH interpolation helper
-  function getFSensor(t) {
-    if (samples.length === 0) return 0;
-    const idx = Math.floor(t / dt_sample);
-    const clampedIdx = Math.max(0, Math.min(samples.length - 1, idx));
-    return samples[clampedIdx].f;
+  // Wire event handlers once
+  if (!canvas.zoomEventsWired) {
+    canvas.zoomEventsWired = true;
+
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const cache = canvas.datasetCache;
+      if (!cache) return;
+
+      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total };
+      const tRange = zoom.tMax - zoom.tMin;
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const plotW = canvas.width - PAD_X - RIGHT_MARGIN;
+      const mouseT = zoom.tMin + ((mouseX - PAD_X) / plotW) * tRange;
+
+      const zoomFactor = e.deltaY < 0 ? 0.85 : 1.15;
+      let newRange = tRange * zoomFactor;
+      newRange = Math.max(0.05, Math.min(cache.T_total, newRange));
+
+      const tMinNew = Math.max(0, mouseT - (mouseT - zoom.tMin) * (newRange / tRange));
+      const tMaxNew = Math.min(cache.T_total, tMinNew + newRange);
+
+      canvas.zoomState = { tMin: tMinNew, tMax: tMaxNew };
+      renderSensorPlotWindow(canvas);
+    });
+
+    let isDragging = false;
+    let startX = 0;
+    let startTMin = 0;
+    let startTMax = 0;
+
+    canvas.addEventListener("mousedown", (e) => {
+      const cache = canvas.datasetCache;
+      if (!cache) return;
+      isDragging = true;
+      startX = e.clientX;
+      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total };
+      startTMin = zoom.tMin;
+      startTMax = zoom.tMax;
+      canvas.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const cache = canvas.datasetCache;
+      if (!cache) return;
+
+      const plotW = canvas.width - PAD_X - RIGHT_MARGIN;
+      const tRange = startTMax - startTMin;
+      const dx = e.clientX - startX;
+      const dt = (dx / plotW) * tRange;
+
+      let tMinNew = startTMin - dt;
+      let tMaxNew = startTMax - dt;
+
+      if (tMinNew < 0) {
+        tMinNew = 0;
+        tMaxNew = tRange;
+      }
+      if (tMaxNew > cache.T_total) {
+        tMaxNew = cache.T_total;
+        tMinNew = cache.T_total - tRange;
+      }
+
+      canvas.zoomState = { tMin: tMinNew, tMax: tMaxNew };
+      renderSensorPlotWindow(canvas);
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        canvas.style.cursor = "default";
+      }
+    });
   }
 
-  // Scale Y axis based on F_true and F_sensor curves
+  // Draw visible frame
+  renderSensorPlotWindow(canvas);
+}
+
+/**
+ * Render cached sensor plot window
+ */
+export function renderSensorPlotWindow(canvas) {
+  const cache = canvas.datasetCache;
+  if (!cache) return;
+  const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total };
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const plotW = W - PAD_X - RIGHT_MARGIN;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const tMin = zoom.tMin;
+  const tMax = zoom.tMax;
+  const tRange = tMax - tMin;
+
+  // Find min/max F inside visible window for auto-scale
   let minF = Infinity;
   let maxF = -Infinity;
-  const num_eval = 200;
-  for (let i = 0; i <= num_eval; i++) {
-    const t = (i / num_eval) * T_total;
-    const f_tr = getFTrue(t);
-    const f_sens = getFSensor(t);
-    if (f_tr < minF) minF = f_tr;
-    if (f_tr > maxF) maxF = f_tr;
-    if (f_sens < minF) minF = f_sens;
-    if (f_sens > maxF) maxF = f_sens;
-  }
-  
-  if (minF === maxF) {
+
+  cache.f_true_pts.forEach(p => {
+    if (p.t >= tMin && p.t <= tMax) {
+      if (p.f < minF) minF = p.f;
+      if (p.f > maxF) maxF = p.f;
+    }
+  });
+
+  cache.samples.forEach(s => {
+    if (s.t >= tMin && s.t <= tMax) {
+      if (s.f < minF) minF = s.f;
+      if (s.f > maxF) maxF = s.f;
+    }
+  });
+
+  if (minF === Infinity) {
     minF = -0.05;
     maxF = 0.05;
   }
+  if (minF === maxF) {
+    minF -= 0.05;
+    maxF += 0.05;
+  }
+
   const fRange = maxF - minF;
   const padding = fRange > 0 ? fRange * 0.1 : 0.05;
   const fMin = minF - padding;
   const fMax = maxF + padding;
 
-  // Y ticks and grid lines
+  // Draw grid
   drawYAxis(ctx, H, plotH, W, fMin, fMax, 3, false);
-  
-  // Highlight zero line
   drawZeroLine(ctx, W, H, plotH, fMin, fMax);
-  
-  // X ticks
-  drawXTicks(ctx, H, plotW, 0, T_total, 6, 1, "s");
-  
-  // Draw axes
+  drawXTicks(ctx, H, plotW, tMin, tMax, 6, 2, "s");
   drawAxes(ctx, W, H);
 
-  // Draw F_true (smooth teal line)
+  // Draw F_true (smooth green/teal line)
   ctx.strokeStyle = "#1D9E75";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  const renderPts = 500;
-  for (let i = 0; i <= renderPts; i++) {
-    const t = (i / renderPts) * T_total;
-    const f = getFTrue(t);
-    const px = PAD_X + (t / T_total) * plotW;
-    const py = H - PAD_Y - ((f - fMin) / (fMax - fMin)) * plotH;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-  }
+  let first = true;
+  cache.f_true_pts.forEach(p => {
+    if (p.t >= tMin && p.t <= tMax) {
+      const px = PAD_X + ((p.t - tMin) / tRange) * plotW;
+      const py = H - PAD_Y - ((p.f - fMin) / (fMax - fMin)) * plotH;
+      if (first) {
+        ctx.moveTo(px, py);
+        first = false;
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
+  });
   ctx.stroke();
 
   // Draw F_sensor (stepped red ZOH line)
   ctx.strokeStyle = "#E06666";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    const px = PAD_X + (s.t / T_total) * plotW;
+
+  // Filter samples inside visible window (including boundary margins)
+  const visibleSamples = cache.samples.filter(s => s.t >= tMin - cache.dt_sample && s.t <= tMax + cache.dt_sample);
+  for (let i = 0; i < visibleSamples.length; i++) {
+    const s = visibleSamples[i];
+    const px = PAD_X + ((s.t - tMin) / tRange) * plotW;
     const py = H - PAD_Y - ((s.f - fMin) / (fMax - fMin)) * plotH;
     
     if (i === 0) {
       ctx.moveTo(px, py);
     } else {
-      const prev_s = samples[i - 1];
-      const px_prev = PAD_X + (s.t / T_total) * plotW;
+      const prev_s = visibleSamples[i - 1];
+      const px_prev = PAD_X + ((s.t - tMin) / tRange) * plotW;
       const py_prev = H - PAD_Y - ((prev_s.f - fMin) / (fMax - fMin)) * plotH;
       ctx.lineTo(px_prev, py_prev);
       ctx.lineTo(px, py);
     }
   }
-  if (samples.length > 0) {
-    const last_s = samples[samples.length - 1];
-    const px_end = PAD_X + plotW;
-    const py_end = H - PAD_Y - ((last_s.f - fMin) / (fMax - fMin)) * plotH;
-    ctx.lineTo(px_end, py_end);
-  }
   ctx.stroke();
 
-  // Calculate RMSE
-  const rmse_eval_pts = Math.max(10, Math.floor(100 * T_total));
-  let sumSqError = 0;
-  for (let i = 0; i < rmse_eval_pts; i++) {
-    const t = (i / (rmse_eval_pts - 1)) * T_total;
-    const f_tr = getFTrue(t);
-    const f_sens = getFSensor(t);
-    const err = f_tr - f_sens;
-    sumSqError += err * err;
-  }
-  const rmse = Math.sqrt(sumSqError / rmse_eval_pts);
-  if (els.sensorRmseDisplay) {
-    els.sensorRmseDisplay.textContent = rmse.toFixed(4) + " N";
+  // Update RMSE Display
+  const rmseDisplay = document.getElementById("sensorRmseDisplay");
+  if (rmseDisplay) {
+    rmseDisplay.textContent = cache.rmse.toFixed(4) + " N";
   }
 
-  // Draw legend
-  ctx.font = "8px sans-serif";
+  // Draw legend (high contrast, bold, matching line colors, repositioned above axes)
+  ctx.font = "bold 9px sans-serif";
   ctx.fillStyle = "#1D9E75";
-  ctx.fillText("Ground truth F_true(t)", PAD_X + 10, TOP_MARGIN - 8);
+  ctx.fillText("Ground truth F_true(t)", PAD_X + 15, TOP_MARGIN - 8);
   ctx.fillStyle = "#E06666";
-  ctx.fillText("Simulated sensor F_sensor(t)", PAD_X + 120, TOP_MARGIN - 8);
+  ctx.fillText("Simulated sensor F_sensor(t)", PAD_X + 145, TOP_MARGIN - 8);
 
   // Axis titles
   drawAxisTitles(ctx, W, H, "time (s)", "force (N)");

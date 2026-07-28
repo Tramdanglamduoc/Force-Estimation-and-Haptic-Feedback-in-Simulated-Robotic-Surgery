@@ -267,3 +267,33 @@ export function runBootstrap(data, B = 1000, modelType = "Kelvin-Voigt", xTarget
   
   return { k_boot, c_boot };
 }
+
+/**
+ * Calculate the effective stiffness k(x) at a given depth x (in mm).
+ * When heterogeneous tissue is on, stiffness varies smoothly via cosine interpolation
+ * from the background stiffness to the inclusion stiffness within a transition zone of 2.0 mm.
+ * 
+ * Formula:
+ * - If isHetero is false, return k_background directly.
+ * - Let d = max(0, D_inclusion - x)
+ * - Let D_ZONE = 2.0 mm (transition zone thickness)
+ * - k_inclusion = k_background * stiffness_ratio
+ * - If d >= D_ZONE: k_effective = k_background
+ * - If 0 < d < D_ZONE: k_effective = k_background + (k_inclusion - k_background) * 0.5 * (1 + cos(pi * d / D_ZONE))
+ * - If d <= 0: k_effective = k_inclusion
+ */
+export function calculateEffectiveStiffness(x, k_background, isHetero, D_inclusion, stiffness_ratio) {
+  if (!isHetero) return k_background;
+  const k_inclusion = k_background * stiffness_ratio;
+  const d = Math.max(0, D_inclusion - x);
+  const D_ZONE = 2.0;
+  if (d >= D_ZONE) {
+    return k_background;
+  } else if (d > 0) {
+    const interp = 0.5 * (1 + Math.cos((Math.PI * d) / D_ZONE));
+    return k_background + (k_inclusion - k_background) * interp;
+  } else {
+    return k_inclusion;
+  }
+}
+

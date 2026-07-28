@@ -2,7 +2,7 @@ import { runBootstrapAndUpdateUI } from './bootstrap-ci.js';
 import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, drawSensorPlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
-import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce } from '../physics.js';
+import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce, calculateEffectiveStiffness } from '../physics.js';
 import { updateTissueStructure } from '../tabs/tissue-structure-tab.js';
 
 let bootstrapTimeout = null;
@@ -137,6 +137,12 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   const holdDuration = parseFloat(els.holdSlider.value);
   const rampMin = parseFloat(els.rampMinSlider.value);
   const rampMax = parseFloat(els.rampMaxSlider.value);
+
+  const isHetero = els.heteroToggle && els.heteroToggle.classList.contains("on");
+  const D_inclusion = els.inclusionDepthSlider ? parseFloat(els.inclusionDepthSlider.value) : 5.0;
+  const stiffness_ratio = els.stiffnessRatioSlider ? parseFloat(els.stiffnessRatioSlider.value) : 1.0;
+  const kEffective = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
+  console.log("update-cycle: kEffective computed", { isHetero, k, kEffective, stiffness_ratio, D_inclusion, x });
   
   if (els.xVal) els.xVal.textContent = x.toFixed(1);
   if (els.holdVal) els.holdVal.textContent = holdDuration.toFixed(1);
@@ -271,11 +277,11 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   let x_dashpot = 0;
 
   if (modelType === "Maxwell") {
-    const tau = calculateRelaxationTime(k, c);
+    const tau = calculateRelaxationTime(kEffective, c);
     const v_m = Math.max(1e-6, v_effective_m);
     const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
     total = c * v_m * (1 - Math.exp(exponent));
-    x_spring = total / Math.max(1e-6, k);
+    x_spring = total / Math.max(1e-6, kEffective);
     x_dashpot = Math.max(0, x_m - x_spring);
     
     if (x_m > 0) {
@@ -285,7 +291,7 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
     }
     pViscous = 100 - pElastic;
   } else {
-    fElastic = calculateElasticForce(k, x_m);
+    fElastic = calculateElasticForce(kEffective, x_m);
     fViscous = calculateViscousForce(c, v_effective_m);
     total = calculateTotalForce(fElastic, fViscous);
     
@@ -326,7 +332,7 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
           <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
           <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
           <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
-            F = (${k.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
+            F = (${kEffective.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
@@ -369,25 +375,6 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   // Draw Tissue structure canvas
   updateTissueStructure(els, k, x, selectedTissue);
 
-  // Calculate kEffective
-  const isHetero = els.heteroToggle && els.heteroToggle.classList.contains("on");
-  const D_inclusion = els.inclusionDepthSlider ? parseFloat(els.inclusionDepthSlider.value) : 5.0;
-  const stiffness_ratio = els.stiffnessRatioSlider ? parseFloat(els.stiffnessRatioSlider.value) : 1.0;
-  const k_inclusion = k * stiffness_ratio;
-  const d = Math.max(0, D_inclusion - x);
-  const D_ZONE = 2.0;
-  let kEffective = k;
-  if (isHetero) {
-    if (d >= D_ZONE) {
-      kEffective = k;
-    } else if (d > 0) {
-      const interp = 0.5 * (1 + Math.cos((Math.PI * d) / D_ZONE));
-      kEffective = k + (k_inclusion - k) * interp;
-    } else {
-      kEffective = k_inclusion;
-    }
-  }
-
   // Compute global max peak force to set F_max dynamically
   const rampT_FMax = calculateRampT(x, v_effective, rampMin, rampMax);
   const Tc_FMax = 2 * rampT_FMax + holdDuration;
@@ -411,11 +398,12 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   }
   function getFTrue_FMax(t) {
     const x_val = xOfT_FMax(t), v_val = vOfT_FMax(t);
+    const kEff = calculateEffectiveStiffness(x_val, k, isHetero, D_inclusion, stiffness_ratio);
     if (modelType === "Maxwell") {
       const tInCycle = t % Tc_FMax;
-      return calculateMaxwellForce(tInCycle, kEffective, c, x, v_effective, holdDuration, rampMin, rampMax);
+      return calculateMaxwellForce(tInCycle, kEff, c, x, v_effective, holdDuration, rampMin, rampMax);
     } else {
-      return kEffective * mmToM(x_val) + c * mmToM(v_val);
+      return kEff * mmToM(x_val) + c * mmToM(v_val);
     }
   }
 
