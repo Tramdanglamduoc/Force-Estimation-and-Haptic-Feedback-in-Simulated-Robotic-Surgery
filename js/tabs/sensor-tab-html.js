@@ -91,46 +91,44 @@ export function sensorTabHTML() {
 
       <!-- COLUMN 2: Raw sensor signal vs. true force chart -->
       <div>
-        <div class="plots-row">
-          <div class="card" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 4px;">
-              <h3 style="margin: 0;">Raw sensor signal vs. true force</h3>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="resetZoomBtn" class="small-btn" style="padding: 4px 8px; font-size: 10.5px; font-weight: 600; background: #fff; color: var(--navy); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;" title="Reset Zoom">Reset Zoom</button>
-                <button id="expandSensorBtn" class="small-btn" style="padding: 4px 6px; font-size: 10.5px; font-weight: 600; background: #fff; color: var(--navy); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; display: flex; align-items: center;" title="Fullscreen/Expand Chart">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-                </button>
-              </div>
+        <div class="card" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 4px;">
+            <h3 style="margin: 0;">Raw sensor signal vs. true force</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button id="resetZoomBtn" class="small-btn" style="padding: 4px 8px; font-size: 10.5px; font-weight: 600; background: #fff; color: var(--navy); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;" title="Reset Zoom">Reset Zoom</button>
+              <button id="expandSensorBtn" class="small-btn" style="padding: 4px 6px; font-size: 10.5px; font-weight: 600; background: #fff; color: var(--navy); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; display: flex; align-items: center;" title="Fullscreen/Expand Chart">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+              </button>
             </div>
-            <p class="sub" style="align-self: flex-start; margin-bottom: 8px;">Simulated hardware output including latency, noise, quantization, and saturation</p>
-            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); align-self: flex-start; margin-bottom: 16px;">
-              USES: K_EFF, C, X, Ẋ (from Physics model / Tissue structure) + &sigma;, LATENCY, SAMPLING RATE, BIAS, STEP, F_MAX, DROPOUT (local)
-            </span>
-            
-            <div class="sensor-plot-legend" style="display: flex; gap: 16px; font-size: 11px; margin-bottom: 12px; justify-content: center; width: 100%; font-family: sans-serif;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="display: inline-block; width: 12px; height: 3px; background-color: #1D9E75; border-radius: 1px;"></span>
-                <span style="font-weight: bold; color: #1D9E75;">Ground truth F_true(t)</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="display: inline-block; width: 12px; height: 3px; background-color: #E06666; border-radius: 1px;"></span>
-                <span style="font-weight: bold; color: #E06666;">Simulated sensor F_sensor(t)</span>
-              </div>
+          </div>
+          <p class="sub" style="align-self: flex-start; margin-bottom: 8px;">Simulated hardware output including latency, noise, quantization, and saturation</p>
+          <span class="badge" style="background: #EDF1F3; color: var(--text-muted); align-self: flex-start; margin-bottom: 16px;">
+            USES: K_EFF, C, X, Ẋ (from Physics model / Tissue structure) + &sigma;, LATENCY, SAMPLING RATE, BIAS, STEP, F_MAX, DROPOUT (local)
+          </span>
+          
+          <div class="sensor-plot-legend" style="display: flex; gap: 16px; font-size: 11px; margin-bottom: 12px; justify-content: center; width: 100%; font-family: sans-serif;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="display: inline-block; width: 12px; height: 3px; background-color: #1D9E75; border-radius: 1px;"></span>
+              <span style="font-weight: bold; color: #1D9E75;">Ground truth F_true(t)</span>
             </div>
-            <canvas id="plotSensor" width="400" height="180" style="width: 100%; max-width: 400px; height: 180px;"></canvas>
-            
-            <div style="width: 100%; margin-top: 16px; padding: 12px; background: #FBFCFD; border: 1px solid var(--border); border-radius: 8px;">
-              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 6px;">Root Mean Square Error (RMSE)</div>
-              <div style="font-size: 18px; font-weight: 700; color: var(--navy);" id="sensorRmseDisplay">0.0000 N</div>
-              <p class="note" style="margin-top: 6px; line-height: 1.4; color: var(--text-muted);">
-                RMSE is calculated continuously over the full multi-cycle timeline comparing F_true and ZOH F_sensor.
-              </p>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="display: inline-block; width: 12px; height: 3px; background-color: #E06666; border-radius: 1px;"></span>
+              <span style="font-weight: bold; color: #E06666;">Simulated sensor F_sensor(t)</span>
             </div>
-            
-            <p class="note" style="margin-top: 16px; line-height: 1.5; border-left: 3px solid var(--teal); padding-left: 8px; width: 100%;">
-              <strong>Data Source Sync Note:</strong> True force (F_true) is read from the Physics model tab (k, c, x, ẋ) and Tissue structure tab (k_effective, if Heterogeneous tissue is ON). To change the true force curve, go back to those tabs — sliders in this tab only affect the simulated sensor signal, not the ground truth.
+          </div>
+          <canvas id="plotSensor" width="400" height="180" style="width: 100%; height: 180px;"></canvas>
+          
+          <div style="width: 100%; margin-top: 16px; padding: 12px; background: #FBFCFD; border: 1px solid var(--border); border-radius: 8px;">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 6px;">Root Mean Square Error (RMSE)</div>
+            <div style="font-size: 18px; font-weight: 700; color: var(--navy);" id="sensorRmseDisplay">0.0000 N</div>
+            <p class="note" style="margin-top: 6px; line-height: 1.4; color: var(--text-muted);">
+              RMSE is calculated continuously over the full multi-cycle timeline comparing F_true and ZOH F_sensor.
             </p>
           </div>
+          
+          <p class="note" style="margin-top: 16px; line-height: 1.5; border-left: 3px solid var(--teal); padding-left: 8px; width: 100%;">
+            <strong>Data Source Sync Note:</strong> True force (F_true) is read from the Physics model tab (k, c, x, ẋ) and Tissue structure tab (k_effective, if Heterogeneous tissue is ON). To change the true force curve, go back to those tabs — sliders in this tab only affect the simulated sensor signal, not the ground truth.
+          </p>
         </div>
       </div>
 
