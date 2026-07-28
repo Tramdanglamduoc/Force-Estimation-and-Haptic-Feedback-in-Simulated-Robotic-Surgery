@@ -101,5 +101,10 @@ document.addEventListener("DOMContentLoaded", () => {
     handleToolChange(els, updateFn);
     update(els);
     updateMonteCarloVisibility(els);
+
+    // Initialize Haptic tab controller
+    import('./haptic.js').then(({ initHapticTab }) => {
+      initHapticTab(els);
+    });
   });
 });

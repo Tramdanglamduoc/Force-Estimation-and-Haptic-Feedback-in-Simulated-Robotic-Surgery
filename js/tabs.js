@@ -1,6 +1,7 @@
 import { physicsTabHTML } from './tabs/physics-tab-html.js';
 import { structureTabHTML } from './tabs/structure-tab-html.js';
 import { sensorTabHTML } from './tabs/sensor-tab-html.js';
+import { hapticTabHTML } from './tabs/haptic-tab-html.js';
 
 export const tabs = [
   { id: "physics", label: "Physics model", ready: true },
@@ -12,10 +13,7 @@ export const tabs = [
     "PINN stage — uncertainty: MC Dropout / Deep Ensembles",
     "PINN stage — explainability: SHAP / feature attribution"
   ] },
-  { id: "haptic", label: "Haptic preview", ready: false, items: [
-    "Animated force-vs-time playback",
-    "Synchronized needle/gauge indicator"
-  ] },
+  { id: "haptic", label: "Haptic preview", ready: true },
   { id: "library", label: "Scenario library", ready: false, items: [
     "Save/load named presets",
     "Export current configuration + plots as PDF/report"
@@ -33,6 +31,10 @@ export function showTab(id) {
   if (paramPanel) {
     paramPanel.style.display = (id === "physics") ? "" : "none";
   }
+  
+  // Dispatch tabChanged custom event
+  const event = new CustomEvent("tabChanged", { detail: { tabId: id } });
+  document.dispatchEvent(event);
 }
 
 /**
@@ -67,6 +69,8 @@ export function initTabs() {
       panel.innerHTML = structureTabHTML();
     } else if (t.id === "sensor") {
       panel.innerHTML = sensorTabHTML();
+    } else if (t.id === "haptic") {
+      panel.innerHTML = hapticTabHTML();
     } else {
       panel.innerHTML = `
         <div class="card placeholder-card">

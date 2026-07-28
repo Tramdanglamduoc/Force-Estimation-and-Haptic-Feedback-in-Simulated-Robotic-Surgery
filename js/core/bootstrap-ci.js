@@ -63,6 +63,13 @@ export function runBootstrapAndUpdateUI(els) {
   // Step 2 & 3: Run B=1000 bootstrap resamples using simultaneous 2x2 linear least-squares regression
   const { k_boot, c_boot } = runBootstrap(data, 1000, modelType, currentX, currentV, currentHold, currentRampMin, currentRampMax);
 
+  // Store bootstrap distributions in a global cache
+  window.bootstrapCache = {
+    k_boot: k_boot,
+    c_boot: c_boot,
+    timestamp: Date.now()
+  };
+
   // Step 4: Compute 95% confidence intervals (2.5th and 97.5th percentiles)
   const [kMinCI, kMaxCI] = getPercentiles(k_boot, 2.5, 97.5);
   const [cMinCI, cMaxCI] = getPercentiles(c_boot, 2.5, 97.5);

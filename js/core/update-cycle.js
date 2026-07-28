@@ -8,6 +8,9 @@ import { updateTissueStructure } from '../tabs/tissue-structure-tab.js';
 let bootstrapTimeout = null;
 
 export function update(els) {
+  // Invalidate bootstrap cache immediately on parameter change
+  window.bootstrapCache = null;
+  
   const selectedTissue = els.tissueTypeSelect.value;
   const cfg = tissueConfig[selectedTissue];
   const selectedTool = els.toolTypeSelect.value;
