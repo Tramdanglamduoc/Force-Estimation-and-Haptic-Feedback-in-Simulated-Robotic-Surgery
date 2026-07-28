@@ -106,5 +106,10 @@ document.addEventListener("DOMContentLoaded", () => {
     import('./haptic.js').then(({ initHapticTab }) => {
       initHapticTab(els);
     });
+
+    // Initialize Sensitivity tab controller
+    import('./core/sensitivity-tab.js').then(({ initSensitivityTab }) => {
+      initSensitivityTab(els, () => update(els));
+    });
   });
 });

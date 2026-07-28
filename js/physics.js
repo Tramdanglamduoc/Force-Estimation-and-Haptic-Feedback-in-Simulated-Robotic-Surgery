@@ -297,3 +297,32 @@ export function calculateEffectiveStiffness(x, k_background, isHetero, D_inclusi
   }
 }
 
+/**
+ * Compute the total force for a single snapshot or at time t
+ */
+export function computeTotalForce(k, c, x_mm, v_mm, modelType, holdDuration, rampMin, rampMax, t) {
+  const rampT = Math.min(rampMax, Math.max(rampMin, x_mm / Math.max(1e-6, v_mm)));
+  const T = 2 * rampT + holdDuration;
+  const evalT = t !== undefined ? t : rampT;
+
+  if (modelType === "Maxwell") {
+    return calculateMaxwellForce(evalT, k, c, x_mm, v_mm, holdDuration, rampMin, rampMax);
+  } else {
+    function xOfT(tVal) {
+      if (tVal < 0 || tVal >= T) return 0;
+      if (tVal < rampT) return x_mm * (tVal / rampT);
+      if (tVal < rampT + holdDuration) return x_mm;
+      return x_mm * Math.max(0, (T - tVal) / rampT);
+    }
+    function vOfT(tVal) {
+      if (tVal < 0 || tVal >= T) return 0;
+      if (tVal < rampT) return x_mm / rampT;
+      if (tVal < rampT + holdDuration) return 0;
+      return -x_mm / rampT;
+    }
+    const depth_m = xOfT(evalT) / 1000;
+    const vel_m = vOfT(evalT) / 1000;
+    return k * depth_m + c * vel_m;
+  }
+}
+

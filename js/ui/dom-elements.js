@@ -141,6 +141,22 @@ export function getElements() {
     sensorDropoutInput: document.getElementById("sensorDropoutInput"),
     sensorDropoutVal: document.getElementById("sensorDropoutVal"),
     plotSensor: document.getElementById("plotSensor"),
-    sensorRmseDisplay: document.getElementById("sensorRmseDisplay")
+    sensorRmseDisplay: document.getElementById("sensorRmseDisplay"),
+
+    // Sensitivity & Uncertainty tab elements
+    perturbPctSlider: document.getElementById("perturbPctSlider"),
+    perturbPctInput: document.getElementById("perturbPctInput"),
+    perturbPctVal: document.getElementById("perturbPctVal"),
+    bootstrapNSlider: document.getElementById("bootstrapNSlider"),
+    heatmapParamXSelect: document.getElementById("heatmapParamXSelect"),
+    heatmapParamYSelect: document.getElementById("heatmapParamYSelect"),
+    recomputeConvergenceBtn: document.getElementById("recomputeConvergenceBtn"),
+    compareTissueChecks: document.getElementById("compareTissueChecks"),
+    plotTornado: document.getElementById("plotTornado"),
+    plotHeatmap: document.getElementById("plotHeatmap"),
+    plotConvergence: document.getElementById("plotConvergence"),
+    plotComparison: document.getElementById("plotComparison"),
+    rankingTableContainer: document.getElementById("rankingTableContainer"),
+    sobolDecompContainer: document.getElementById("sobolDecompContainer")
   };
 }

@@ -1023,3 +1023,389 @@ export function renderSensorPlotWindow(canvas) {
   drawAxisTitles(ctx, W, H, "time (s)", "force (N)");
 }
 
+export function drawTornadoChart(canvas, results) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const TORNADO_PAD_X = 120;
+  const plotW = W - TORNADO_PAD_X - RIGHT_MARGIN;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+
+  ctx.strokeStyle = "#D8DEE2";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(TORNADO_PAD_X, H - PAD_Y);
+  ctx.lineTo(W - RIGHT_MARGIN, H - PAD_Y);
+  ctx.moveTo(TORNADO_PAD_X, H - PAD_Y);
+  ctx.lineTo(TORNADO_PAD_X, TOP_MARGIN);
+  ctx.stroke();
+
+  if (results.length === 0) return;
+
+  const maxSwing = Math.max(...results.map(r => r.swing)) || 0.1;
+  const limitX = maxSwing * 1.05;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.font = "9px sans-serif";
+  ctx.fillStyle = "#5C6B73";
+  ctx.strokeStyle = "#EAF0F4";
+  for (let i = 0; i <= 5; i++) {
+    const val = (i / 5) * limitX;
+    const px = TORNADO_PAD_X + (i / 5) * plotW;
+    ctx.beginPath();
+    ctx.moveTo(px, H - PAD_Y);
+    ctx.lineTo(px, TOP_MARGIN);
+    ctx.stroke();
+
+    ctx.fillText(val.toFixed(4), px, H - PAD_Y + 8);
+  }
+
+  const numBars = results.length;
+  const barGap = 6;
+  const totalBarH = plotH / numBars;
+  const barH = totalBarH - barGap;
+
+  results.forEach((r, idx) => {
+    const py = TOP_MARGIN + idx * totalBarH + barGap / 2;
+    const barW = (r.swing / limitX) * plotW;
+
+    ctx.fillStyle = "#378ADD";
+    ctx.fillRect(TORNADO_PAD_X, py, barW, barH);
+
+    ctx.fillStyle = "#1B2A33";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(r.label, TORNADO_PAD_X - 10, py + barH / 2);
+
+    ctx.fillStyle = "#5C6B73";
+    ctx.textAlign = "left";
+    ctx.fillText(r.swing.toFixed(4) + " N", TORNADO_PAD_X + barW + 5, py + barH / 2);
+  });
+
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("swing magnitude (N)", TORNADO_PAD_X + plotW / 2, H - PAD_Y + 20);
+}
+
+export function drawInteractionHeatmap(canvas, gridObj) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const HEATMAP_PAD_X = 65;
+  const plotW = W - HEATMAP_PAD_X - RIGHT_MARGIN - 20;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+
+  if (!gridObj || !gridObj.grid) return;
+
+  const { grid, xVals, yVals, xLabel, yLabel } = gridObj;
+
+  let minF = Infinity;
+  let maxF = -Infinity;
+  grid.forEach(row => {
+    row.forEach(val => {
+      if (val < minF) minF = val;
+      if (val > maxF) maxF = val;
+    });
+  });
+
+  if (minF === maxF) {
+    minF = 0;
+    maxF = 1;
+  }
+
+  const numRows = grid.length;
+  const numCols = grid[0].length;
+  const cellW = plotW / numCols;
+  const cellH = plotH / numRows;
+
+  for (let r = 0; r < numRows; r++) {
+    for (let c = 0; c < numCols; c++) {
+      const val = grid[r][c];
+      const ratio = (val - minF) / (maxF - minF);
+
+      const r_col = Math.round(55 + ratio * 165);
+      const g_col = Math.round(138 - ratio * 78);
+      const b_col = Math.round(221 - ratio * 161);
+      ctx.fillStyle = `rgb(${r_col}, ${g_col}, ${b_col})`;
+
+      const px = HEATMAP_PAD_X + c * cellW;
+      const py = H - PAD_Y - (r + 1) * cellH;
+      ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
+    }
+  }
+
+  ctx.strokeStyle = "#D8DEE2";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(HEATMAP_PAD_X, TOP_MARGIN, plotW, plotH);
+
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "8px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const numTicks = 3;
+  for (let i = 0; i < numTicks; i++) {
+    const idx = Math.round((i / (numTicks - 1)) * (numCols - 1));
+    const val = xVals[idx];
+    const px = HEATMAP_PAD_X + (idx / (numCols - 1)) * plotW;
+    ctx.fillText(val.toFixed(2), px, H - PAD_Y + 5);
+  }
+
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < numTicks; i++) {
+    const idx = Math.round((i / (numTicks - 1)) * (numRows - 1));
+    const val = yVals[idx];
+    const py = H - PAD_Y - (idx / (numRows - 1)) * plotH;
+    ctx.fillText(val.toFixed(2), HEATMAP_PAD_X - 6, py);
+  }
+
+  const barX = W - RIGHT_MARGIN - 10;
+  const barW = 10;
+  for (let y = 0; y < plotH; y++) {
+    const ratio = 1 - (y / plotH);
+    const r_col = Math.round(55 + ratio * 165);
+    const g_col = Math.round(138 - ratio * 78);
+    const b_col = Math.round(221 - ratio * 161);
+    ctx.fillStyle = `rgb(${r_col}, ${g_col}, ${b_col})`;
+    ctx.fillRect(barX, TOP_MARGIN + y, barW, 1.5);
+  }
+
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "7px sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(maxF.toFixed(3), barX, TOP_MARGIN - 8);
+  ctx.textBaseline = "bottom";
+  ctx.fillText(minF.toFixed(3), barX, H - PAD_Y + 8);
+
+  drawAxisTitles(ctx, W - 20, H, xLabel, yLabel);
+}
+
+export function drawConvergencePlot(canvas, nValues, ciWidths) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const CONV_PAD_X = 55;
+  const CONV_PAD_R = 40;
+  const plotW = W - CONV_PAD_X - CONV_PAD_R;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+
+  if (!nValues || nValues.length === 0 || !ciWidths) return;
+
+  const { kWidths, cWidths } = ciWidths;
+  const maxK = Math.max(...kWidths) || 1.0;
+  const maxC = Math.max(...cWidths) || 1.0;
+
+  ctx.strokeStyle = "#D8DEE2";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(CONV_PAD_X, H - PAD_Y);
+  ctx.lineTo(W - CONV_PAD_R, H - PAD_Y);
+  ctx.moveTo(CONV_PAD_X, H - PAD_Y);
+  ctx.lineTo(CONV_PAD_X, TOP_MARGIN);
+  ctx.moveTo(W - CONV_PAD_R, H - PAD_Y);
+  ctx.lineTo(W - CONV_PAD_R, TOP_MARGIN);
+  ctx.stroke();
+
+  ctx.font = "8px sans-serif";
+  for (let i = 0; i <= 4; i++) {
+    const ratio = i / 4;
+    const py = H - PAD_Y - ratio * plotH;
+
+    ctx.strokeStyle = "#EAF0F4";
+    ctx.beginPath();
+    ctx.moveTo(CONV_PAD_X, py);
+    ctx.lineTo(W - CONV_PAD_R, py);
+    ctx.stroke();
+
+    ctx.fillStyle = "#378ADD";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText((ratio * maxK).toFixed(1), CONV_PAD_X - 6, py);
+
+    ctx.fillStyle = "#1D9E75";
+    ctx.textAlign = "left";
+    ctx.fillText((ratio * maxC).toFixed(2), W - CONV_PAD_R + 6, py);
+  }
+
+  ctx.fillStyle = "#5C6B73";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.strokeStyle = "#D8DEE2";
+
+  const numN = nValues.length;
+  nValues.forEach((n, idx) => {
+    const px = CONV_PAD_X + (idx / Math.max(1, numN - 1)) * plotW;
+    ctx.beginPath();
+    ctx.moveTo(px, H - PAD_Y);
+    ctx.lineTo(px, H - PAD_Y + 4);
+    ctx.stroke();
+
+    ctx.fillText(n.toString(), px, H - PAD_Y + 8);
+  });
+
+  ctx.strokeStyle = "#378ADD";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  kWidths.forEach((kw, idx) => {
+    const px = CONV_PAD_X + (idx / Math.max(1, numN - 1)) * plotW;
+    const py = H - PAD_Y - (kw / maxK) * plotH;
+    if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+
+  ctx.strokeStyle = "#1D9E75";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  cWidths.forEach((cw, idx) => {
+    const px = CONV_PAD_X + (idx / Math.max(1, numN - 1)) * plotW;
+    const py = H - PAD_Y - (cw / maxC) * plotH;
+    if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("bootstrap sample size N", CONV_PAD_X + plotW / 2, H - PAD_Y + 20);
+
+  ctx.save();
+  ctx.translate(10, (H - PAD_Y + TOP_MARGIN) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = "#378ADD";
+  ctx.fillText("Stiffness CI width (N/m)", 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(W - 10, (H - PAD_Y + TOP_MARGIN) / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillStyle = "#1D9E75";
+  ctx.fillText("Damping CI width (Ns/m)", 0, 0);
+  ctx.restore();
+}
+
+export function drawComparisonBars(canvas, resultsByTissue) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!resultsByTissue || Object.keys(resultsByTissue).length === 0) {
+    ctx.fillStyle = "#5C6B73";
+    ctx.font = "italic 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Select at least one tissue to compare", W / 2, H / 2);
+    return;
+  }
+
+  const COMP_PAD_X = 65;
+  const plotW = W - COMP_PAD_X - RIGHT_MARGIN;
+  const plotH = H - PAD_Y - TOP_MARGIN;
+
+  const tissues = Object.keys(resultsByTissue);
+  const paramNames = resultsByTissue[tissues[0]].map(p => p.name);
+  const paramLabels = {
+    E: "E",
+    nu: "\u03BD",
+    c_material: "c_mat",
+    contactRadius: "radius a",
+    length: "length L",
+    jawArea: "area A",
+    thickness: "thickness h"
+  };
+
+  let maxSwing = 0;
+  tissues.forEach(tName => {
+    resultsByTissue[tName].forEach(p => {
+      if (p.swing > maxSwing) maxSwing = p.swing;
+    });
+  });
+  const limitY = maxSwing * 1.05 || 0.1;
+
+  ctx.strokeStyle = "#D8DEE2";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(COMP_PAD_X, H - PAD_Y);
+  ctx.lineTo(W - RIGHT_MARGIN, H - PAD_Y);
+  ctx.moveTo(COMP_PAD_X, H - PAD_Y);
+  ctx.lineTo(COMP_PAD_X, TOP_MARGIN);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#EAF0F4";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "#5C6B73";
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 5; i++) {
+    const fVal = (i / 5) * limitY;
+    const py = H - PAD_Y - (i / 5) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(COMP_PAD_X, py);
+    ctx.lineTo(W - RIGHT_MARGIN, py);
+    ctx.stroke();
+    ctx.fillText(fVal.toFixed(4) + " N", COMP_PAD_X - 8, py);
+  }
+
+  const numGroups = paramNames.length;
+  const groupW = plotW / numGroups;
+  const numBars = tissues.length;
+  const barW = (groupW * 0.7) / numBars;
+  const groupGap = groupW * 0.15;
+
+  const organColors = {
+    Liver: "#8B3A3A",
+    Kidney: "#A04040",
+    Spleen: "#581845"
+  };
+
+  paramNames.forEach((pName, gIdx) => {
+    const groupStartX = COMP_PAD_X + gIdx * groupW + groupGap;
+
+    tissues.forEach((tName, tIdx) => {
+      const pData = resultsByTissue[tName].find(p => p.name === pName);
+      if (pData) {
+        const val = pData.swing;
+        const barH = (val / limitY) * plotH;
+        const px = groupStartX + tIdx * barW;
+        const py = H - PAD_Y - barH;
+
+        ctx.fillStyle = organColors[tName] || "#378ADD";
+        ctx.fillRect(px, py, barW - 1, barH);
+      }
+    });
+
+    ctx.fillStyle = "#1B2A33";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(paramLabels[pName] || pName, COMP_PAD_X + gIdx * groupW + groupW / 2, H - PAD_Y + 6);
+  });
+
+  ctx.font = "8px sans-serif";
+  tissues.forEach((tName, idx) => {
+    const lx = W - RIGHT_MARGIN - 150 + idx * 50;
+    const ly = TOP_MARGIN - 10;
+    ctx.fillStyle = organColors[tName] || "#378ADD";
+    ctx.fillRect(lx, ly, 8, 8);
+
+    ctx.fillStyle = "#5C6B73";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(tName, lx + 12, ly + 4);
+  });
+
+  drawAxisTitles(ctx, W, H, "parameter perturbed (±p%)", "grouped swing magnitude (N)");
+}
+

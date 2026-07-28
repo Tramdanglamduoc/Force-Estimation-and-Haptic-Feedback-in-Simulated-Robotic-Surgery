@@ -4,6 +4,7 @@ import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
 import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce, calculateEffectiveStiffness } from '../physics.js';
 import { updateTissueStructure } from '../tabs/tissue-structure-tab.js';
+import { updateSensitivityTab } from './sensitivity-tab.js';
 
 let bootstrapTimeout = null;
 
@@ -510,6 +511,8 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   if (els.plotSensor) {
     drawSensorPlot(kEffective, c, x, v_effective, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els);
   }
+
+  updateSensitivityTab(els);
 
   // Schedule debounced bootstrap parameter updates (150ms delay)
   if (bootstrapTimeout) clearTimeout(bootstrapTimeout);

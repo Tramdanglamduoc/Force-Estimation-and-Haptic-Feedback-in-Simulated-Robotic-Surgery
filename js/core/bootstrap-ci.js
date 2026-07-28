@@ -216,4 +216,12 @@ export function runBootstrapAndUpdateUI(els) {
     if (els.elasticPct) els.elasticPct.textContent = `${pElastic}%`;
     if (els.viscousPct) els.viscousPct.textContent = `${pViscous}%`;
   }
+
+  // Update Sensitivity & Uncertainty tab if active to redraw Sobol variance using the newly computed bootstrap distributions
+  const panel = document.getElementById("panel-sensitivity");
+  if (panel && panel.classList.contains("active")) {
+    import('./sensitivity-tab.js').then(({ updateSensitivityTab }) => {
+      updateSensitivityTab(els);
+    });
+  }
 }

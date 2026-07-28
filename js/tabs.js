@@ -2,17 +2,13 @@ import { physicsTabHTML } from './tabs/physics-tab-html.js';
 import { structureTabHTML } from './tabs/structure-tab-html.js';
 import { sensorTabHTML } from './tabs/sensor-tab-html.js';
 import { hapticTabHTML } from './tabs/haptic-tab-html.js';
+import { sensitivityTabHTML } from './tabs/sensitivity-tab-html.js';
 
 export const tabs = [
   { id: "physics", label: "Physics model", ready: true },
   { id: "structure", label: "Tissue structure", ready: true },
   { id: "sensor", label: "Sensor simulation", ready: true },
-  { id: "sensitivity", label: "Sensitivity & uncertainty", ready: false, items: [
-    "Tornado chart (±5% parameter variation)",
-    "Monte Carlo uncertainty decomposition",
-    "PINN stage — uncertainty: MC Dropout / Deep Ensembles",
-    "PINN stage — explainability: SHAP / feature attribution"
-  ] },
+  { id: "sensitivity", label: "Sensitivity & uncertainty", ready: true },
   { id: "haptic", label: "Haptic preview", ready: true }
 ];
 
@@ -58,6 +54,7 @@ export function initTabs() {
     const panel = document.createElement("div");
     panel.className = "tabpanel";
     panel.id = "panel-" + t.id;
+
     if (t.id === "physics") {
       panel.classList.add("active");
       panel.innerHTML = physicsTabHTML();
@@ -65,6 +62,8 @@ export function initTabs() {
       panel.innerHTML = structureTabHTML();
     } else if (t.id === "sensor") {
       panel.innerHTML = sensorTabHTML();
+    } else if (t.id === "sensitivity") {
+      panel.innerHTML = sensitivityTabHTML();
     } else if (t.id === "haptic") {
       panel.innerHTML = hapticTabHTML();
     } else {
