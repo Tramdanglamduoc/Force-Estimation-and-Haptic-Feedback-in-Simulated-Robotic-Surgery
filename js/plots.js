@@ -724,6 +724,32 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
     }
     const rmse = Math.sqrt(sumSqError / rmse_eval_pts);
 
+    // Compute default Y bounds once over the entire cached signal
+    let minF = Infinity;
+    let maxF = -Infinity;
+    f_true_pts.forEach(p => {
+      if (p.f < minF) minF = p.f;
+      if (p.f > maxF) maxF = p.f;
+    });
+    samples.forEach(s => {
+      if (s.f < minF) minF = s.f;
+      if (s.f > maxF) maxF = s.f;
+    });
+    if (minF === Infinity) {
+      minF = -0.05;
+      maxF = 0.05;
+    }
+    if (minF === maxF) {
+      minF -= 0.05;
+      maxF += 0.05;
+    }
+    const fRange = maxF - minF;
+    const padding = fRange > 0 ? fRange * 0.1 : 0.05;
+    const defaultYBounds = {
+      fMin: minF - padding,
+      fMax: maxF + padding
+    };
+
     // Store in cache
     canvas.datasetCache = {
       key: cachedKey,
@@ -731,14 +757,33 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
       f_true_pts: f_true_pts,
       rmse: rmse,
       T_total: T_total,
-      dt_sample: dt_sample
+      dt_sample: dt_sample,
+      defaultYBounds: defaultYBounds
     };
 
     // Reset zoom state
-    canvas.zoomState = { tMin: 0, tMax: T_total };
+    canvas.zoomState = { tMin: 0, tMax: T_total, fMin: undefined, fMax: undefined, userHasSetYBounds: false };
+
+    // Check if the Expanded modal is currently open and keep it in sync
+    const plotSensorModal = document.getElementById("plotSensorModal");
+    if (plotSensorModal) {
+      plotSensorModal.datasetCache = canvas.datasetCache; // share by reference
+      plotSensorModal.zoomState = { ...canvas.zoomState };
+      renderSensorPlotWindow(plotSensorModal);
+    }
   }
 
   // Wire event handlers once
+  wireSensorPlotEvents(canvas);
+
+  // Draw visible frame
+  renderSensorPlotWindow(canvas);
+}
+
+/**
+ * Wire zoom and pan events for a sensor plot canvas
+ */
+export function wireSensorPlotEvents(canvas) {
   if (!canvas.zoomEventsWired) {
     canvas.zoomEventsWired = true;
 
@@ -747,38 +792,78 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
       const cache = canvas.datasetCache;
       if (!cache) return;
 
-      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total };
-      const tRange = zoom.tMax - zoom.tMin;
-
+      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total, fMin: undefined, fMax: undefined, userHasSetYBounds: false };
       const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const plotW = canvas.width - PAD_X - RIGHT_MARGIN;
-      const mouseT = zoom.tMin + ((mouseX - PAD_X) / plotW) * tRange;
 
-      const zoomFactor = e.deltaY < 0 ? 0.85 : 1.15;
-      let newRange = tRange * zoomFactor;
-      newRange = Math.max(0.05, Math.min(cache.T_total, newRange));
+      if (e.shiftKey) {
+        // Zoom Y-axis
+        const bounds = zoom.userHasSetYBounds && zoom.fMin !== undefined && zoom.fMax !== undefined ?
+                       { fMin: zoom.fMin, fMax: zoom.fMax } :
+                       (cache.defaultYBounds || { fMin: -0.05, fMax: 0.05 });
+        const fRange = bounds.fMax - bounds.fMin;
+        const mouseY = e.clientY - rect.top;
+        const plotH = canvas.height - PAD_Y - TOP_MARGIN;
+        const mouseF = bounds.fMin + ((canvas.height - PAD_Y - mouseY) / plotH) * fRange;
 
-      const tMinNew = Math.max(0, mouseT - (mouseT - zoom.tMin) * (newRange / tRange));
-      const tMaxNew = Math.min(cache.T_total, tMinNew + newRange);
+        const zoomFactor = e.deltaY < 0 ? 0.85 : 1.15;
+        let newFRange = fRange * zoomFactor;
+        newFRange = Math.max(0.001, Math.min(10.0, newFRange));
 
-      canvas.zoomState = { tMin: tMinNew, tMax: tMaxNew };
+        const fMinNew = mouseF - (mouseF - bounds.fMin) * (newFRange / fRange);
+        const fMaxNew = fMinNew + newFRange;
+
+        canvas.zoomState = {
+          ...zoom,
+          fMin: fMinNew,
+          fMax: fMaxNew,
+          userHasSetYBounds: true
+        };
+      } else {
+        // Zoom X-axis
+        const tRange = zoom.tMax - zoom.tMin;
+        const mouseX = e.clientX - rect.left;
+        const plotW = canvas.width - PAD_X - RIGHT_MARGIN;
+        const mouseT = zoom.tMin + ((mouseX - PAD_X) / plotW) * tRange;
+
+        const zoomFactor = e.deltaY < 0 ? 0.85 : 1.15;
+        let newRange = tRange * zoomFactor;
+        newRange = Math.max(0.05, Math.min(cache.T_total, newRange));
+
+        const tMinNew = Math.max(0, mouseT - (mouseT - zoom.tMin) * (newRange / tRange));
+        const tMaxNew = Math.min(cache.T_total, tMinNew + newRange);
+
+        canvas.zoomState = {
+          ...zoom,
+          tMin: tMinNew,
+          tMax: tMaxNew
+        };
+      }
       renderSensorPlotWindow(canvas);
     });
 
     let isDragging = false;
     let startX = 0;
+    let startY = 0;
     let startTMin = 0;
     let startTMax = 0;
+    let startFMin = 0;
+    let startFMax = 0;
 
     canvas.addEventListener("mousedown", (e) => {
       const cache = canvas.datasetCache;
       if (!cache) return;
       isDragging = true;
       startX = e.clientX;
-      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total };
+      startY = e.clientY;
+      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total, fMin: undefined, fMax: undefined, userHasSetYBounds: false };
       startTMin = zoom.tMin;
       startTMax = zoom.tMax;
+
+      const bounds = zoom.userHasSetYBounds && zoom.fMin !== undefined && zoom.fMax !== undefined ?
+                     { fMin: zoom.fMin, fMax: zoom.fMax } :
+                     (cache.defaultYBounds || { fMin: -0.05, fMax: 0.05 });
+      startFMin = bounds.fMin;
+      startFMax = bounds.fMax;
       canvas.style.cursor = "grabbing";
     });
 
@@ -788,6 +873,9 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
       if (!cache) return;
 
       const plotW = canvas.width - PAD_X - RIGHT_MARGIN;
+      const plotH = canvas.height - PAD_Y - TOP_MARGIN;
+
+      // Always pan X-axis
       const tRange = startTMax - startTMin;
       const dx = e.clientX - startX;
       const dt = (dx / plotW) * tRange;
@@ -804,7 +892,37 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
         tMinNew = cache.T_total - tRange;
       }
 
-      canvas.zoomState = { tMin: tMinNew, tMax: tMaxNew };
+      // Check vertical drag threshold relative to canvas height
+      const dy = e.clientY - startY;
+      const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total, fMin: undefined, fMax: undefined, userHasSetYBounds: false };
+      const threshold = canvas.height * 0.08;
+
+      let userHasSetYBounds = zoom.userHasSetYBounds;
+      if (!userHasSetYBounds && Math.abs(dy) > threshold) {
+        userHasSetYBounds = true;
+      }
+
+      if (userHasSetYBounds) {
+        const fRange = startFMax - startFMin;
+        const df = (dy / plotH) * fRange;
+        const fMinNew = startFMin + df;
+        const fMaxNew = startFMax + df;
+
+        canvas.zoomState = {
+          tMin: tMinNew,
+          tMax: tMaxNew,
+          fMin: fMinNew,
+          fMax: fMaxNew,
+          userHasSetYBounds: true
+        };
+      } else {
+        canvas.zoomState = {
+          ...zoom,
+          tMin: tMinNew,
+          tMax: tMaxNew
+        };
+      }
+
       renderSensorPlotWindow(canvas);
     });
 
@@ -815,9 +933,6 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
       }
     });
   }
-
-  // Draw visible frame
-  renderSensorPlotWindow(canvas);
 }
 
 /**
@@ -826,7 +941,7 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
 export function renderSensorPlotWindow(canvas) {
   const cache = canvas.datasetCache;
   if (!cache) return;
-  const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total };
+  const zoom = canvas.zoomState || { tMin: 0, tMax: cache.T_total, fMin: undefined, fMax: undefined, userHasSetYBounds: false };
 
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
@@ -839,37 +954,15 @@ export function renderSensorPlotWindow(canvas) {
   const tMax = zoom.tMax;
   const tRange = tMax - tMin;
 
-  // Find min/max F inside visible window for auto-scale
-  let minF = Infinity;
-  let maxF = -Infinity;
-
-  cache.f_true_pts.forEach(p => {
-    if (p.t >= tMin && p.t <= tMax) {
-      if (p.f < minF) minF = p.f;
-      if (p.f > maxF) maxF = p.f;
-    }
-  });
-
-  cache.samples.forEach(s => {
-    if (s.t >= tMin && s.t <= tMax) {
-      if (s.f < minF) minF = s.f;
-      if (s.f > maxF) maxF = s.f;
-    }
-  });
-
-  if (minF === Infinity) {
-    minF = -0.05;
-    maxF = 0.05;
+  let fMin, fMax;
+  if (zoom.userHasSetYBounds && zoom.fMin !== undefined && zoom.fMax !== undefined) {
+    fMin = zoom.fMin;
+    fMax = zoom.fMax;
+  } else {
+    const bounds = cache.defaultYBounds || { fMin: -0.05, fMax: 0.05 };
+    fMin = bounds.fMin;
+    fMax = bounds.fMax;
   }
-  if (minF === maxF) {
-    minF -= 0.05;
-    maxF += 0.05;
-  }
-
-  const fRange = maxF - minF;
-  const padding = fRange > 0 ? fRange * 0.1 : 0.05;
-  const fMin = minF - padding;
-  const fMax = maxF + padding;
 
   // Draw grid
   drawYAxis(ctx, H, plotH, W, fMin, fMax, 3, false);
@@ -925,13 +1018,6 @@ export function renderSensorPlotWindow(canvas) {
   if (rmseDisplay) {
     rmseDisplay.textContent = cache.rmse.toFixed(4) + " N";
   }
-
-  // Draw legend (high contrast, bold, matching line colors, repositioned above axes)
-  ctx.font = "bold 9px sans-serif";
-  ctx.fillStyle = "#1D9E75";
-  ctx.fillText("Ground truth F_true(t)", PAD_X + 15, TOP_MARGIN - 8);
-  ctx.fillStyle = "#E06666";
-  ctx.fillText("Simulated sensor F_sensor(t)", PAD_X + 145, TOP_MARGIN - 8);
 
   // Axis titles
   drawAxisTitles(ctx, W, H, "time (s)", "force (N)");

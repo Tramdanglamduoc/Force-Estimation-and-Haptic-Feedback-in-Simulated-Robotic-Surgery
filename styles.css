@@ -693,7 +693,7 @@ input[type=range].locked-slider::-moz-range-thumb {
 /* 3-Column Layout & Responsive Stacking */
 .grid-3 {
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
+  grid-template-columns: 1fr 2fr 1fr;
   gap: 20px;
 }
 

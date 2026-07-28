@@ -107,6 +107,16 @@ export function sensorTabHTML() {
               USES: K_EFF, C, X, Ẋ (from Physics model / Tissue structure) + &sigma;, LATENCY, SAMPLING RATE, BIAS, STEP, F_MAX, DROPOUT (local)
             </span>
             
+            <div class="sensor-plot-legend" style="display: flex; gap: 16px; font-size: 11px; margin-bottom: 12px; justify-content: center; width: 100%; font-family: sans-serif;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 3px; background-color: #1D9E75; border-radius: 1px;"></span>
+                <span style="font-weight: bold; color: #1D9E75;">Ground truth F_true(t)</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 3px; background-color: #E06666; border-radius: 1px;"></span>
+                <span style="font-weight: bold; color: #E06666;">Simulated sensor F_sensor(t)</span>
+              </div>
+            </div>
             <canvas id="plotSensor" width="400" height="180" style="width: 100%; max-width: 400px; height: 180px;"></canvas>
             
             <div style="width: 100%; margin-top: 16px; padding: 12px; background: #FBFCFD; border: 1px solid var(--border); border-radius: 8px;">
@@ -168,9 +178,19 @@ export function sensorTabHTML() {
       <div style="background-color: #fff; margin: auto; padding: 24px; border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 900px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
         <span id="closeSensorModal" style="position: absolute; right: 20px; top: 16px; font-size: 28px; font-weight: bold; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</span>
         <h3 style="margin-top: 0; margin-bottom: 4px;">Raw sensor signal vs. true force (Expanded)</h3>
-        <p class="sub" style="margin-bottom: 16px;">Scroll/pinch to zoom, click and drag to pan.</p>
+        <p class="sub" style="margin-bottom: 16px;">Scroll/pinch to zoom X-axis (Shift + scroll to zoom Y-axis), click and drag to pan.</p>
         <div style="display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 12px;">
           <button id="resetModalZoomBtn" class="small-btn" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #fff; color: var(--navy); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Reset zoom</button>
+        </div>
+        <div class="sensor-plot-legend" style="display: flex; gap: 16px; font-size: 11px; margin-bottom: 12px; justify-content: center; width: 100%; font-family: sans-serif;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 12px; height: 3px; background-color: #1D9E75; border-radius: 1px;"></span>
+            <span style="font-weight: bold; color: #1D9E75;">Ground truth F_true(t)</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 12px; height: 3px; background-color: #E06666; border-radius: 1px;"></span>
+            <span style="font-weight: bold; color: #E06666;">Simulated sensor F_sensor(t)</span>
+          </div>
         </div>
         <canvas id="plotSensorModal" width="800" height="360" style="width: 100%; height: 360px; border: 1px solid var(--border); border-radius: 8px; background: #FFF;"></canvas>
       </div>
