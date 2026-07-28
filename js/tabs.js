@@ -6,10 +6,6 @@ export const tabs = [
   { id: "physics", label: "Physics model", ready: true },
   { id: "structure", label: "Tissue structure", ready: true },
   { id: "sensor", label: "Sensor simulation", ready: true },
-  { id: "comparison", label: "Model comparison", ready: false, items: [
-    "Ranking table: PINN vs. LSTM/MLP baseline vs. pure physics model",
-    "Compared across scenarios from Tool & contact / Tissue structure tabs"
-  ] },
   { id: "sensitivity", label: "Sensitivity & uncertainty", ready: false, items: [
     "Tornado chart (±5% parameter variation)",
     "Monte Carlo uncertainty decomposition",
