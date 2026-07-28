@@ -13,11 +13,7 @@ export const tabs = [
     "PINN stage — uncertainty: MC Dropout / Deep Ensembles",
     "PINN stage — explainability: SHAP / feature attribution"
   ] },
-  { id: "haptic", label: "Haptic preview", ready: true },
-  { id: "library", label: "Scenario library", ready: false, items: [
-    "Save/load named presets",
-    "Export current configuration + plots as PDF/report"
-  ] }
+  { id: "haptic", label: "Haptic preview", ready: true }
 ];
 
 /**
