@@ -342,14 +342,11 @@ function recalculateCycleData(els) {
     state.sensorSamples.push(fSensorVal);
   }
 
-  // Assign limits
-  if (state.audioSource === 'sensor') {
-    state.F_min = 0;
-    state.F_max = F_max_sensor;
-  } else {
-    state.F_min = Math.min(0, minTrue);
-    state.F_max = Math.max(0.1, maxTrue);
-  }
+  // Assign visual bounds of the gauge based on min/max of F_true over the cycle with a 5% margin
+  const rangeTrue = maxTrue - minTrue;
+  const margin = rangeTrue * 0.05 || 0.005;
+  state.F_min = minTrue - margin;
+  state.F_max = maxTrue + margin;
 
   // Make sure current time does not exceed cycle duration
   if (state.currentTime > T) {
@@ -580,8 +577,21 @@ function updatePlaybackUI(els) {
 
   // 4. Sonification logic
   if (state.audioEnabled && state.audioContext && state.isPlaying) {
-    const range = state.F_max - state.F_min;
-    const ratio = range > 0 ? Math.min(1, Math.max(0, (F_audio - state.F_min) / range)) : 0;
+    let audioMin = state.F_min;
+    let audioMax = state.F_max;
+    if (state.audioSource === 'sensor') {
+      const F_max_sensor = parseFloat(els.sensorSatSlider.value) || 0.5;
+      audioMin = 0;
+      audioMax = F_max_sensor;
+    } else {
+      // Use exact F_true bounds without the dial margin for precise sound scaling
+      const rangeTrue = state.F_max - state.F_min;
+      const marginVal = rangeTrue / 1.1 * 0.05;
+      audioMin = state.F_min + marginVal;
+      audioMax = state.F_max - marginVal;
+    }
+    const range = audioMax - audioMin;
+    const ratio = range > 0 ? Math.min(1, Math.max(0, (F_audio - audioMin) / range)) : 0;
     
     // Frequency Pitch Mapping
     const targetFreq = state.minFrequency + ratio * (state.maxFrequency - state.minFrequency);
