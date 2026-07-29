@@ -503,8 +503,6 @@ export function updateSensitivityTab(els) {
       }
     }
 
-    console.log("Sobol debug: x_m=" + x_m + ", v_m=" + v_m + ", varK=" + varK + ", varC=" + varC + ", covKC=" + covKC + ", varF=" + varF + ", sk=" + sk + ", sc=" + sc);
-
     const pctK = Math.round(sk * 100);
     const pctC = Math.round(sc * 100);
     const pctInt = Math.max(0, Math.round(sInteraction * 100));
