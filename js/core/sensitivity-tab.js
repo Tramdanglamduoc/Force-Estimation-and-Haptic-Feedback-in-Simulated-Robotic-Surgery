@@ -7,6 +7,7 @@ import { getPercentiles } from './bootstrap-ci.js';
 // Table sorting state
 let currentSortColumn = "swing";
 let currentSortAsc = false;
+let currentTableData = null;
 
 /**
  * Derives lumped k and c from material and tool parameters
@@ -489,10 +490,14 @@ export function updateSensitivityTab(els) {
     if (varF > 1e-12) {
       sk = (Math.pow(x_m, 2) * varK) / varF;
       sc = (Math.pow(v_m, 2) * varC) / varF;
-      sInteraction = 1 - sk - sc;
-      if (sInteraction < 0) {
+      if (sk + sc > 1) {
+        const total = sk + sc;
+        sk = sk / total;
+        sc = sc / total;
         sInteraction = 0;
         clampedFootnote = "*Interaction term clamped to 0% due to negative covariance";
+      } else {
+        sInteraction = 1 - sk - sc;
       }
     }
 
@@ -614,6 +619,7 @@ export function updateSensitivityTab(els) {
       return 0;
     });
 
+    currentTableData = tableData;
     renderRankingTable(rankingTableContainer, tableData, els);
   }
 
@@ -717,10 +723,20 @@ function renderRankingTable(container, data, els) {
         currentSortColumn = col;
         currentSortAsc = false;
       }
-      // Re-trigger the render update
-      import('./update-cycle.js').then(({ update }) => {
-        update(els);
-      });
+      
+      // Re-sort the stored tableData in place and re-render without re-running physics
+      if (currentTableData) {
+        currentTableData.sort((a, b) => {
+          let valA = a[currentSortColumn];
+          let valB = b[currentSortColumn];
+          if (typeof valA === "string") valA = valA.toLowerCase();
+          if (typeof valB === "string") valB = valB.toLowerCase();
+          if (valA < valB) return currentSortAsc ? -1 : 1;
+          if (valA > valB) return currentSortAsc ? 1 : -1;
+          return 0;
+        });
+        renderRankingTable(container, currentTableData, els);
+      }
     });
   });
 }
