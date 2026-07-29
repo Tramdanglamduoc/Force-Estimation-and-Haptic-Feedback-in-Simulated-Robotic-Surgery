@@ -111,5 +111,10 @@ document.addEventListener("DOMContentLoaded", () => {
     import('./core/sensitivity-tab.js').then(({ initSensitivityTab }) => {
       initSensitivityTab(els, () => update(els));
     });
+
+    // Re-render the active tab panels on tab change
+    document.addEventListener("tabChanged", () => {
+      update(els);
+    });
   });
 });
