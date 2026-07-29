@@ -1,6 +1,6 @@
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
-import { mmToM, calculateEffectiveStiffness, computeTotalForce, runBootstrap } from '../physics.js';
+import { mmToM, calculateEffectiveStiffness, computeTotalForce, runBootstrap, calculateConfinementFactor } from '../physics.js';
 import { calculateRampT, calculateEffectiveVelocity } from '../plots.js';
 import { getPercentiles } from './bootstrap-ci.js';
 
@@ -25,8 +25,9 @@ export function deriveLumpedParams(E_kPa, nu, c_mat_kPas, geom1, geom2, group) {
   } else {
     const A_m2 = geom1 * 1e-6;
     const h_m = geom2 / 1000;
-    k = (E_Pa * A_m2) / h_m;
-    c = (c_mat_Pas * A_m2) / h_m;
+    const confinement = calculateConfinementFactor(nu);
+    k = ((E_Pa * A_m2) / h_m) * confinement;
+    c = ((c_mat_Pas * A_m2) / h_m) * confinement;
   }
   return { k, c };
 }

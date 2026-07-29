@@ -5,7 +5,8 @@ import {
   runBootstrap,
   mmToM,
   calculateElasticForce,
-  calculateViscousForce
+  calculateViscousForce,
+  calculateConfinementFactor
 } from '../physics.js';
 import { calculateEffectiveVelocity } from '../plots.js';
 
@@ -52,7 +53,9 @@ export function runBootstrapAndUpdateUI(els) {
     const A_m2 = A_mm2 * 1e-6;
     h_mm = parseFloat(els.thicknessSlider.value);
     const h_m = h_mm / 1000;
-    currentK = (E_Pa * A_m2) / h_m;
+    nu = parseFloat(els.nuSlider.value);
+    const confinement = calculateConfinementFactor(nu);
+    currentK = ((E_Pa * A_m2) / h_m) * confinement;
   }
 
   const modelType = els.modelTypeSelect ? els.modelTypeSelect.value : "Kelvin-Voigt";
@@ -81,8 +84,9 @@ export function runBootstrapAndUpdateUI(els) {
     E_min = kMinCI * (1 - nu * nu) / (2 * a_mm);
     E_max = kMaxCI * (1 - nu * nu) / (2 * a_mm);
   } else {
-    E_min = kMinCI * h_mm / A_mm2;
-    E_max = kMaxCI * h_mm / A_mm2;
+    const confinement = calculateConfinementFactor(nu);
+    E_min = (kMinCI * h_mm / A_mm2) / confinement;
+    E_max = (kMaxCI * h_mm / A_mm2) / confinement;
   }
 
   // Back-derive Damping c_material confidence interval
@@ -97,8 +101,9 @@ export function runBootstrapAndUpdateUI(els) {
   } else {
     const A_m2 = A_mm2 * 1e-6;
     const h_m = h_mm / 1000;
-    cMat_min = (cMinCI * h_m / A_m2) / 1000;
-    cMat_max = (cMaxCI * h_m / A_m2) / 1000;
+    const confinement = calculateConfinementFactor(nu);
+    cMat_min = (cMinCI * h_m / A_m2 / confinement) / 1000;
+    cMat_max = (cMaxCI * h_m / A_m2 / confinement) / 1000;
   }
 
   const halfE = (E_max - E_min) / 2;

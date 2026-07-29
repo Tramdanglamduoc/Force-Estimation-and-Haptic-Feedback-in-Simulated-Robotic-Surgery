@@ -128,7 +128,7 @@ export function handleToolChange(els, updateFn) {
       }
       updateLSliderBackground(els, cfg);
     } else if (cfg.group === "B") {
-      if (els.nuSliderRow) els.nuSliderRow.style.display = "none";
+      if (els.nuSliderRow) els.nuSliderRow.style.display = "block";
       if (els.groupAControls) els.groupAControls.style.display = "none";
       if (els.groupBControls) els.groupBControls.style.display = "block";
       

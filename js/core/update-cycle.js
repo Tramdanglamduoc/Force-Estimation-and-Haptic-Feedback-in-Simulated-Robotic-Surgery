@@ -2,7 +2,7 @@ import { runBootstrapAndUpdateUI } from './bootstrap-ci.js';
 import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, drawSensorPlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
-import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce, calculateEffectiveStiffness } from '../physics.js';
+import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce, calculateEffectiveStiffness, calculateConfinementFactor, decomposeForce } from '../physics.js';
 import { updateTissueStructure } from '../tabs/tissue-structure-tab.js';
 import { updateSensitivityTab } from './sensitivity-tab.js';
 
@@ -44,11 +44,13 @@ k = ${fmt(numerator)} / ${fmt(denominator)} ≈ ${k.toFixed(1)} N/m`;
     const A_m2 = A_mm2 * 1e-6;
     const h_mm = parseFloat(els.thicknessSlider.value);
     const h_m = h_mm / 1000;
+    const nu = parseFloat(els.nuSlider.value);
+    const confinement = calculateConfinementFactor(nu);
     
-    k = (E_Pa * A_m2) / h_m;
+    k = ((E_Pa * A_m2) / h_m) * confinement;
     
-    kCalculationText = `Formula: k = E·A / h
-k = ${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)} ≈ ${k.toFixed(1)} N/m`;
+    kCalculationText = `Formula: k = (E·A / h) × [(1−ν) / ((1+ν)(1−2ν))]
+k = (${E_Pa.toFixed(0)} × ${fmt(A_m2)} / ${fmt(h_m)}) × ${confinement.toFixed(4)} ≈ ${k.toFixed(1)} N/m`;
   }
   
   els.kSlider.value = k;
@@ -87,13 +89,15 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(L_m)} ≈ ${c.toFixed(2)} Ns/m`;
     const A_m2 = A_mm2 * 1e-6;
     const h_mm = parseFloat(els.thicknessSlider.value);
     const h_m = h_mm / 1000;
+    const nu = parseFloat(els.nuSlider.value);
+    const confinement = calculateConfinementFactor(nu);
     
     const numeratorC = cMaterial_Pa_s * A_m2;
-    c = numeratorC / h_m;
+    c = (numeratorC / h_m) * confinement;
     
-    cCalculationText = `Formula: c_lumped = c_material × A / h
-c_lumped = (${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${fmt(h_m)}
-c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
+    cCalculationText = `Formula: c_lumped = (c_material × A / h) × [(1−ν) / ((1+ν)(1−2ν))]*
+c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${fmt(h_m)}) × ${confinement.toFixed(4)} ≈ ${c.toFixed(2)} Ns/m
+*Note: Confinement scaling for viscous damping is a simplifying approximation.`;
   }
 
   const modelType = els.modelTypeSelect ? els.modelTypeSelect.value : "Kelvin-Voigt";
@@ -272,40 +276,23 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   }
 
   // Decomposition calculation
-  let pElastic = 50;
-  let pViscous = 50;
-  let fElastic = 0;
-  let fViscous = 0;
+  const decomp = decomposeForce(modelType, kEffective, c, x_m, v_effective_m);
+  const pElastic = decomp.pElastic;
+  const pViscous = decomp.pViscous;
   let total = 0;
   let x_spring = 0;
   let x_dashpot = 0;
+  let fElastic = 0;
+  let fViscous = 0;
 
   if (modelType === "Maxwell") {
-    const tau = calculateRelaxationTime(kEffective, c);
-    const v_m = Math.max(1e-6, v_effective_m);
-    const exponent = (v_m * tau) > 0 ? -x_m / (v_m * tau) : 0;
-    total = c * v_m * (1 - Math.exp(exponent));
-    x_spring = total / Math.max(1e-6, kEffective);
-    x_dashpot = Math.max(0, x_m - x_spring);
-    
-    if (x_m > 0) {
-      pElastic = Math.round((x_spring / x_m) * 100);
-    } else {
-      pElastic = 100;
-    }
-    pViscous = 100 - pElastic;
+    x_spring = decomp.primaryValue / 1000;
+    x_dashpot = decomp.secondaryValue / 1000;
+    total = x_spring * kEffective;
   } else {
-    fElastic = calculateElasticForce(kEffective, x_m);
-    fViscous = calculateViscousForce(c, v_effective_m);
-    total = calculateTotalForce(fElastic, fViscous);
-    
-    if (total > 0) {
-      pElastic = Math.round((fElastic / total) * 100);
-      pViscous = 100 - pElastic;
-    } else {
-      pElastic = 0;
-      pViscous = 0;
-    }
+    fElastic = decomp.primaryValue;
+    fViscous = decomp.secondaryValue;
+    total = fElastic + fViscous;
   }
   
   if (els.elasticBar) els.elasticBar.style.width = pElastic + "%";
@@ -370,11 +357,6 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
 
   // Retrieve Monte Carlo state
   const mcOn = els.mcToggle && els.mcToggle.classList.contains("on");
-
-  // Draw plots
-  drawDepthPlot(k, x, mcOn, modelType, c, v_effective);
-  drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType, isCyclicOn, cycleCount);
-  drawHysteresisPlot(k, c, x, v, rampMin, rampMax, mcOn);
 
   // Draw Tissue structure canvas
   updateTissueStructure(els, k, x, selectedTissue);
@@ -506,7 +488,7 @@ c_lumped = ${fmt(numeratorC)} / ${fmt(h_m)} ≈ ${c.toFixed(2)} Ns/m`;
   // Draw plots
   drawDepthPlot(k, x, mcOn, modelType, c, v_effective);
   drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType, isCyclicOn, cycleCount);
-  drawHysteresisPlot(k, c, x, v, rampMin, rampMax, mcOn);
+  drawHysteresisPlot(k, c, x, v, rampMin, rampMax, mcOn, modelType, holdDuration);
   
   if (els.plotSensor) {
     drawSensorPlot(kEffective, c, x, v_effective, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els);

@@ -371,3 +371,60 @@ export function computeTotalForce(k, c, x_mm, v_mm, modelType, holdDuration, ram
   }
 }
 
+/**
+ * Calculate the confinement factor based on Poisson's ratio nu
+ */
+export function calculateConfinementFactor(nu) {
+  return (1 - nu) / ((1 + nu) * (1 - 2 * nu));
+}
+
+/**
+ * Shared force/strain decomposition utility
+ */
+export function decomposeForce(modelType, kEff, c, x_m, v_m) {
+  let pElastic = 50;
+  let pViscous = 50;
+  let primaryValue = 0;
+  let secondaryValue = 0;
+  let unit = "N";
+
+  if (modelType === "Maxwell") {
+    const tau = calculateRelaxationTime(kEff, c);
+    const v_val = Math.max(1e-6, v_m);
+    const exponent = (v_val * tau) > 0 ? -x_m / (v_val * tau) : 0;
+    const total = c * v_val * (1 - Math.exp(exponent));
+    const x_spring = total / Math.max(1e-6, kEff);
+    const x_dashpot = Math.max(0, x_m - x_spring);
+    
+    if (x_m > 0) {
+      pElastic = Math.min(100, Math.max(0, Math.round((x_spring / x_m) * 100)));
+    } else {
+      pElastic = 100;
+    }
+    pViscous = 100 - pElastic;
+    
+    // Convert to mm for display values
+    primaryValue = x_spring * 1000;
+    secondaryValue = x_dashpot * 1000;
+    unit = "mm";
+  } else {
+    const fElastic = kEff * x_m;
+    const fViscous = c * v_m;
+    const total = fElastic + fViscous;
+    
+    if (total > 0) {
+      pElastic = Math.min(100, Math.max(0, Math.round((fElastic / total) * 100)));
+      pViscous = 100 - pElastic;
+    } else {
+      pElastic = 0;
+      pViscous = 0;
+    }
+    primaryValue = fElastic;
+    secondaryValue = fViscous;
+    unit = "N";
+  }
+
+  return { pElastic, pViscous, primaryValue, secondaryValue, unit };
+}
+
+

@@ -2,7 +2,8 @@ import {
   mmToM,
   calculateRelaxationTime,
   calculateMaxwellForce,
-  calculateEffectiveStiffness
+  calculateEffectiveStiffness,
+  decomposeForce
 } from './physics.js';
 
 // Seeded PRNG for deterministic live sensor generation
@@ -527,8 +528,8 @@ function updatePlaybackUI(els) {
     F_true = kEff * mmToM(depth) + c * mmToM(vel);
   }
 
-  const F_elastic = kEff * mmToM(depth);
-  const F_viscous = c * mmToM(vel);
+  // Decompose using the shared utility
+  const decomp = decomposeForce(modelType, kEff, c, mmToM(depth), mmToM(vel));
 
   // Get active audio signal
   const F_sensor = getFSensorLive(t);
@@ -557,20 +558,30 @@ function updatePlaybackUI(els) {
     }
   }
 
-  // 2. Bar components split
-  const maxBarForce = Math.max(0.1, state.F_max);
-  const pctElastic = Math.min(100, Math.max(0, (F_elastic / maxBarForce) * 100));
-  const pctViscous = Math.min(100, Math.max(0, (F_viscous / maxBarForce) * 100));
+  // Update DOM labels based on model type
+  const hDecompHeader = document.getElementById("hapticDecompHeader");
+  const hElasticLabel = document.getElementById("hapticElasticLabel");
+  const hViscousLabel = document.getElementById("hapticViscousLabel");
+  if (hDecompHeader) {
+    hDecompHeader.textContent = modelType === "Maxwell" ? "Strain decomposition" : "Force components";
+  }
+  if (hElasticLabel) {
+    hElasticLabel.innerHTML = modelType === "Maxwell" ? "Spring x<sub>spring</sub>" : "Elastic F<sub>e</sub>";
+  }
+  if (hViscousLabel) {
+    hViscousLabel.innerHTML = modelType === "Maxwell" ? "Dashpot x<sub>dashpot</sub>" : "Viscous F<sub>v</sub>";
+  }
 
+  // 2. Bar components split
   const hElasticBar = document.getElementById("hapticElasticBar");
   const hViscousBar = document.getElementById("hapticViscousBar");
   const hElasticVal = document.getElementById("hapticElasticVal");
   const hViscousVal = document.getElementById("hapticViscousVal");
 
-  if (hElasticBar) hElasticBar.style.width = pctElastic + "%";
-  if (hViscousBar) hViscousBar.style.width = pctViscous + "%";
-  if (hElasticVal) hElasticVal.textContent = F_elastic.toFixed(3) + " N";
-  if (hViscousVal) hViscousVal.textContent = F_viscous.toFixed(3) + " N";
+  if (hElasticBar) hElasticBar.style.width = decomp.pElastic + "%";
+  if (hViscousBar) hViscousBar.style.width = decomp.pViscous + "%";
+  if (hElasticVal) hElasticVal.textContent = decomp.primaryValue.toFixed(3) + " " + decomp.unit;
+  if (hViscousVal) hViscousVal.textContent = decomp.secondaryValue.toFixed(3) + " " + decomp.unit;
 
   // 3. Render Gauge
   drawGauge(F_true, t, els);

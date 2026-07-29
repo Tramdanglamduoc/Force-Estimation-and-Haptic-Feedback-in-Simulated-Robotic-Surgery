@@ -1,6 +1,8 @@
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
 
+import { calculateConfinementFactor } from '../physics.js';
+
 export function updateESliderBackground(els, cfg) {
   if (!els.eSlider) return;
   const min = cfg.E_full[0];
@@ -68,9 +70,11 @@ export function updateKScale(els) {
     const AMax = parseFloat(els.jawAreaSlider.max) * 1e-6;
     const hMin = parseFloat(els.thicknessSlider.min) / 1000;
     const hMax = parseFloat(els.thicknessSlider.max) / 1000;
+    const confMin = calculateConfinementFactor(cfg.nu.min);
+    const confMax = calculateConfinementFactor(cfg.nu.max);
     
-    kMinScale = (EMin * AMin) / hMax;
-    kMaxScale = (EMax * AMax) / hMin;
+    kMinScale = ((EMin * AMin) / hMax) * confMin;
+    kMaxScale = ((EMax * AMax) / hMin) * confMax;
   }
   
   els.kSlider.min = kMinScale.toFixed(2);
@@ -105,9 +109,11 @@ export function updateCScale(els) {
     const AMax = parseFloat(els.jawAreaSlider.max) * 1e-6;
     const hMin = parseFloat(els.thicknessSlider.min) / 1000;
     const hMax = parseFloat(els.thicknessSlider.max) / 1000;
+    const confMin = calculateConfinementFactor(cfg.nu.min);
+    const confMax = calculateConfinementFactor(cfg.nu.max);
     
-    cMinScale = (cMin * AMin) / hMax;
-    cMaxScale = (cMax * AMax) / hMin;
+    cMinScale = ((cMin * AMin) / hMax) * confMin;
+    cMaxScale = ((cMax * AMax) / hMin) * confMax;
   }
   
   els.cSlider.min = cMinScale.toFixed(2);

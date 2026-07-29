@@ -394,7 +394,7 @@ export function drawTimePlot(k, c, xTarget, vTarget, holdDuration, rampMin, ramp
 /**
  * Draw Hysteresis loop plot (Force vs Depth for one loading-then-unloading cycle)
  */
-export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcOn) {
+export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcOn, modelType = "Kelvin-Voigt", holdDuration = 1.0) {
   const canvas = document.getElementById("plotHysteresis");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -419,25 +419,43 @@ export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcO
   const stiffness_ratio = stiffnessRatioSlider ? parseFloat(stiffnessRatioSlider.value) : 1.0;
 
   // Generate points for one loading-unloading cycle (excluding hold phase)
-  // Loading phase: x goes from 0 to xTarget, ẋ = v_effective
-  // Unloading phase: x goes from xTarget back to 0, ẋ = -v_effective
   const pts = [];
   const minPts = [];
   const maxPts = [];
   
-  // 50 points for loading
-  for (let i = 0; i <= 50; i++) {
-    const x = (i / 50) * xTarget;
-    const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
-    const f = kEff * mmToM(x) + c * v_effective_m;
-    pts.push({ x, f, phase: 'loading' });
-  }
-  // 50 points for unloading
-  for (let i = 0; i <= 50; i++) {
-    const x = xTarget - (i / 50) * xTarget;
-    const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
-    const f = kEff * mmToM(x) - c * v_effective_m;
-    pts.push({ x, f, phase: 'unloading' });
+  if (modelType === "Maxwell") {
+    const rampT = Math.min(rampMax, Math.max(rampMin, xTarget / vTarget));
+    const kEffTarget = calculateEffectiveStiffness(xTarget, k, isHetero, D_inclusion, stiffness_ratio);
+    
+    // 50 points for loading
+    for (let i = 0; i <= 50; i++) {
+      const t = (i / 50) * rampT;
+      const x = (i / 50) * xTarget;
+      const f = calculateMaxwellForce(t, kEffTarget, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+      pts.push({ x, f, phase: 'loading' });
+    }
+    // 50 points for unloading
+    for (let i = 0; i <= 50; i++) {
+      const t = rampT + holdDuration + (i / 50) * rampT;
+      const x = xTarget - (i / 50) * xTarget;
+      const f = calculateMaxwellForce(t, kEffTarget, c, xTarget, vTarget, holdDuration, rampMin, rampMax);
+      pts.push({ x, f, phase: 'unloading' });
+    }
+  } else {
+    // 50 points for loading
+    for (let i = 0; i <= 50; i++) {
+      const x = (i / 50) * xTarget;
+      const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
+      const f = kEff * mmToM(x) + c * v_effective_m;
+      pts.push({ x, f, phase: 'loading' });
+    }
+    // 50 points for unloading
+    for (let i = 0; i <= 50; i++) {
+      const x = xTarget - (i / 50) * xTarget;
+      const kEff = calculateEffectiveStiffness(x, k, isHetero, D_inclusion, stiffness_ratio);
+      const f = kEff * mmToM(x) - c * v_effective_m;
+      pts.push({ x, f, phase: 'unloading' });
+    }
   }
   
   // Find min and max force for axis limits
@@ -549,10 +567,19 @@ export function drawHysteresisPlot(k, c, xTarget, vTarget, rampMin, rampMax, mcO
   // Labels for paths
   ctx.font = "8px sans-serif";
   ctx.fillStyle = "#378ADD";
-  ctx.fillText("Loading (F = k·x + c·v)", pL1.x + 8, pL1.y - 2);
+  ctx.fillText(modelType === "Maxwell" ? "Loading (Maxwell ODE)" : "Loading (F = k·x + c·v)", pL1.x + 8, pL1.y - 2);
   ctx.fillStyle = "#1D9E75";
-  ctx.fillText("Unloading (F = k·x - c·v)", pU1.x + 8, pU1.y + 8);
+  ctx.fillText(modelType === "Maxwell" ? "Unloading (Maxwell ODE)" : "Unloading (F = k·x - c·v)", pU1.x + 8, pU1.y + 8);
   
+  // Model footnote
+  if (modelType === "Maxwell") {
+    ctx.fillStyle = "#B06A18";
+    ctx.font = "italic 9px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("Maxwell loop assumes constant effective stiffness evaluated at target depth.", W - RIGHT_MARGIN, TOP_MARGIN - 8);
+    ctx.textAlign = "left"; // restore
+  }
+
   // Axis titles
   drawAxisTitles(ctx, W, H, "depth (mm)", "force (N)");
 }

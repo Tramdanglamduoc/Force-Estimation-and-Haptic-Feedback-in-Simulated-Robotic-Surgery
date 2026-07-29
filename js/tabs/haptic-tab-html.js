@@ -87,11 +87,11 @@ export function hapticTabHTML() {
 
           <!-- Split Components Mini-bar -->
           <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; width: 180px; gap: 14px; padding: 16px; background: #FBFCFD; border: 1px solid var(--border); border-radius: 8px;">
-            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); width: 100%; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 2px;">Force components</div>
+            <div id="hapticDecompHeader" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); width: 100%; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 2px;">Force components</div>
             
             <div style="width: 100%;">
               <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-                <span style="font-weight: 600; color: var(--elastic);">Elastic F<sub>e</sub></span>
+                <span id="hapticElasticLabel" style="font-weight: 600; color: var(--elastic);">Elastic F<sub>e</sub></span>
                 <span id="hapticElasticVal" style="font-weight: 700; color: var(--navy);">0.000 N</span>
               </div>
               <div style="width: 100%; height: 6px; background: #EDF1F3; border-radius: 3px; overflow: hidden;">
@@ -101,7 +101,7 @@ export function hapticTabHTML() {
 
             <div style="width: 100%;">
               <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-                <span style="font-weight: 600; color: var(--viscous);">Viscous F<sub>v</sub></span>
+                <span id="hapticViscousLabel" style="font-weight: 600; color: var(--viscous);">Viscous F<sub>v</sub></span>
                 <span id="hapticViscousVal" style="font-weight: 700; color: var(--navy);">0.000 N</span>
               </div>
               <div style="width: 100%; height: 6px; background: #EDF1F3; border-radius: 3px; overflow: hidden;">
