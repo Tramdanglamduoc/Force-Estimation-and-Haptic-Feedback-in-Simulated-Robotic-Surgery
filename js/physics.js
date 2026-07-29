@@ -42,46 +42,6 @@ export function calculateTotalForce(fElastic, fViscous) {
   return fElastic + fViscous;
 }
 
-function mulberry32(a) {
-  return function() {
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  }
-}
-
-function nextGaussianSeeded(prng) {
-  let u = 0, v = 0;
-  while (u === 0) u = prng();
-  while (v === 0) v = prng();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-function generateSeed(k, c, x, v, holdDuration, rampMin, rampMax, modelType) {
-  const str = `${k}_${c}_${x}_${v}_${holdDuration}_${rampMin}_${rampMax}_${modelType}`;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash) || 42;
-}
-
-function generateBootstrapSeed(data, B, modelType, xTarget, vTarget, holdDuration, rampMin, rampMax) {
-  let dataSum = 0;
-  for (let i = 0; i < data.length; i++) {
-    dataSum += data[i].x + data[i].v + data[i].f;
-  }
-  const str = `${dataSum.toFixed(4)}_${B}_${modelType}_${xTarget}_${vTarget}_${holdDuration}_${rampMin}_${rampMax}`;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash) || 12345;
-}
-
 // Box-Muller transform for Gaussian random variable with mean=0, std=1
 export function nextGaussian() {
   let u = 0, v = 0;
@@ -146,8 +106,6 @@ export function calculateMaxwellForce(t, k, c, xTarget, vTarget, holdDuration, r
  * @returns {Array<{x: number, v: number, f: number, t: number}>} noisy dataset
  */
 export function generateSyntheticData(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, modelType = "Kelvin-Voigt") {
-  const seed = generateSeed(k, c, xTarget, vTarget, holdDuration, rampMin, rampMax, modelType);
-  const prng = mulberry32(seed);
   const rampT = Math.min(rampMax, Math.max(rampMin, xTarget / vTarget));
   const T = 2 * rampT + holdDuration;
   
@@ -184,7 +142,7 @@ export function generateSyntheticData(k, c, xTarget, vTarget, holdDuration, ramp
     
     // Add Gaussian noise (SD = 5% of theoretical force value)
     const sd = Math.max(0.001, Math.abs(f_theoretical) * 0.05);
-    const f_noisy = f_theoretical + nextGaussianSeeded(prng) * sd;
+    const f_noisy = f_theoretical + nextGaussian() * sd;
     
     data.push({ x: x_m, v: v_ms, f: f_noisy, t: t });
   }
@@ -292,8 +250,6 @@ export function fitLeastSquares(data, modelType = "Kelvin-Voigt", xTarget = 5, v
  * @returns {{k_boot: number[], c_boot: number[]}} bootstrap parameter arrays
  */
 export function runBootstrap(data, B = 1000, modelType = "Kelvin-Voigt", xTarget = 5, vTarget = 5, holdDuration = 1.0, rampMin = 0.1, rampMax = 1.2) {
-  const seed = generateBootstrapSeed(data, B, modelType, xTarget, vTarget, holdDuration, rampMin, rampMax);
-  const prng = mulberry32(seed);
   const k_boot = [];
   const c_boot = [];
   const N = data.length;
@@ -301,7 +257,7 @@ export function runBootstrap(data, B = 1000, modelType = "Kelvin-Voigt", xTarget
   for (let b = 0; b < B; b++) {
     const resampled = [];
     for (let i = 0; i < N; i++) {
-      const idx = Math.floor(prng() * N);
+      const idx = Math.floor(Math.random() * N);
       resampled.push(data[idx]);
     }
     const fit = fitLeastSquares(resampled, modelType, xTarget, vTarget, holdDuration, rampMin, rampMax);
