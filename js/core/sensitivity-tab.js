@@ -157,6 +157,23 @@ export function initSensitivityTab(els, updateFn) {
     });
   }
 
+  // Bootstrap sample size N slider listener
+  if (els.bootstrapNSlider) {
+    els.bootstrapNSlider.addEventListener("input", () => {
+      const N_opts = [100, 500, 1000, 2000, 5000];
+      const sliderIdx = parseInt(els.bootstrapNSlider.value);
+      const val = N_opts[sliderIdx] || 1000;
+      if (els.bootstrapNVal) {
+        els.bootstrapNVal.textContent = val;
+      }
+      const min = parseFloat(els.bootstrapNSlider.min) || 0;
+      const max = parseFloat(els.bootstrapNSlider.max) || 4;
+      const pct = ((sliderIdx - min) / (max - min)) * 100;
+      els.bootstrapNSlider.style.setProperty('--fill-pct', `${pct}%`);
+      updateFn();
+    });
+  }
+
   // Cross-tissue comparisons checkbox wiring
   if (els.compareTissueChecks) {
     els.compareTissueChecks.querySelectorAll("input[type=checkbox]").forEach(cb => {
@@ -208,7 +225,7 @@ function evaluateForceForParams(paramOverrides, baselineParams, group, els) {
   const kEff = calculateEffectiveStiffness(x, derived.k, isHetero, D_inclusion, stiffness_ratio);
 
   const rampT = calculateRampT(x, v, rampMin, rampMax);
-  return computeTotalForce(kEff, derived.c, x, v, modelType, holdDuration, rampMin, rampMax, rampT);
+  return computeTotalForce(kEff, derived.c, x, v, modelType, holdDuration, rampMin, rampMax, rampT / 2);
 }
 
 /**
@@ -371,9 +388,10 @@ export function updateSensitivityTab(els) {
   const panel = document.getElementById("panel-sensitivity");
   if (!panel || !panel.classList.contains("active")) return;
 
-  const selectedTool = els.toolTypeSelect.value;
-  const toolCfg = toolConfig[selectedTool];
-  const group = toolCfg ? toolCfg.group : "A";
+  try {
+    const selectedTool = els.toolTypeSelect.value;
+    const toolCfg = toolConfig[selectedTool];
+    const group = toolCfg ? toolCfg.group : "A";
 
   const baselineParams = getActiveParams(els);
   const pPct = parseInt(els.perturbPctSlider.value) || 5;
@@ -620,7 +638,7 @@ export function updateSensitivityTab(els) {
           const tBaselineParams = [
             { name: "E", val: tE, min: tCfg.E_full[0], max: tCfg.E_full[1] },
             { name: "nu", val: tNu, min: tCfg.nu ? tCfg.nu.min : 0.3, max: tCfg.nu ? tCfg.nu.max : 0.49 },
-            { name: "c_material", val: tCMat, min: tCfg.c_full[0], max: tCfg.c_full[1] }
+            { name: "c_material", val: tCMat, min: tCfg.c_main[0], max: tCfg.c_main[1] }
           ];
 
           // Geometry parameters remain fixed at active slider values
@@ -651,6 +669,9 @@ export function updateSensitivityTab(els) {
         drawComparisonBars(els.plotComparison, comparisonResults);
       });
     }
+  }
+  } catch (err) {
+    console.error("Error in updateSensitivityTab:", err);
   }
 }
 

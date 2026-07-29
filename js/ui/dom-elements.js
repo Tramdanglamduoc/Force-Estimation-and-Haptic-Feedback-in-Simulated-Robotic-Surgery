@@ -148,6 +148,7 @@ export function getElements() {
     perturbPctInput: document.getElementById("perturbPctInput"),
     perturbPctVal: document.getElementById("perturbPctVal"),
     bootstrapNSlider: document.getElementById("bootstrapNSlider"),
+    bootstrapNVal: document.getElementById("bootstrapNVal"),
     heatmapParamXSelect: document.getElementById("heatmapParamXSelect"),
     heatmapParamYSelect: document.getElementById("heatmapParamYSelect"),
     recomputeConvergenceBtn: document.getElementById("recomputeConvergenceBtn"),

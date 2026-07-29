@@ -106,7 +106,7 @@ export function sensitivityTabHTML() {
           <div class="card">
             <h3>MC convergence / stability check</h3>
             <p class="sub" style="margin-bottom: 8px;">95% confidence interval width as a function of bootstrap sample size N</p>
-            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: fresh runBootstrap runs</span>
+            <span class="badge" style="background: #EDF1F3; color: var(--text-muted); margin-bottom: 16px;">Uses: runBootstrap()</span>
             <canvas id="plotConvergence" width="300" height="180"></canvas>
           </div>
 
