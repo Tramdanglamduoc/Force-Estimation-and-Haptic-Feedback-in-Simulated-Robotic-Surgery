@@ -164,6 +164,20 @@ export function handleToolChange(els, updateFn) {
         els.thicknessVal.textContent = cfg.defaultH.toFixed(1);
       }
     }
+
+    if (els.xSlider) {
+      els.xSlider.min = cfg.minX;
+      els.xSlider.max = cfg.maxX;
+      els.xSlider.value = cfg.defaultX;
+    }
+    if (els.xInput) {
+      els.xInput.min = cfg.minX;
+      els.xInput.max = cfg.maxX;
+      els.xInput.value = cfg.defaultX;
+    }
+    if (els.xVal) {
+      els.xVal.textContent = cfg.defaultX;
+    }
   }
   updateKScale(els);
   updateCScale(els);

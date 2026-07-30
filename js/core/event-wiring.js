@@ -1,4 +1,32 @@
+import { toolConfig } from '../config/tool-config.js';
+
 export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolChangeFn) {
+  const clampXForThickness = () => {
+    if (els.thicknessSlider && els.toolTypeSelect) {
+      const currentTool = els.toolTypeSelect.value;
+      const cfg = toolConfig[currentTool];
+      if (cfg && cfg.group === "B") {
+        const hVal = parseFloat(els.thicknessSlider.value);
+        const dynMaxX = Math.min(cfg.maxX, 0.6 * hVal);
+        if (els.xSlider) {
+          els.xSlider.max = dynMaxX;
+        }
+        if (els.xInput) {
+          els.xInput.max = dynMaxX;
+        }
+        if (els.xSlider && parseFloat(els.xSlider.value) > dynMaxX) {
+          els.xSlider.value = dynMaxX;
+          if (els.xInput) {
+            els.xInput.value = dynMaxX;
+          }
+          if (els.xVal) {
+            els.xVal.textContent = dynMaxX;
+          }
+        }
+      }
+    }
+  };
+
   const inputs = [
     { slider: els.kSlider, input: els.kInput },
     { slider: els.cSlider, input: els.cInput },
@@ -53,6 +81,10 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
     if (s) s.addEventListener("input", updateFn);
   });
 
+  if (els.thicknessSlider) {
+    els.thicknessSlider.addEventListener("input", clampXForThickness);
+  }
+
   // 3. Attach click listener to mcToggle to trigger recalculation/redraw
   if (els.mcToggle) {
     els.mcToggle.addEventListener("click", () => {
@@ -80,6 +112,9 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
       const val = parseFloat(input.value);
       if (!isNaN(val)) {
         slider.value = val;
+        if (slider === els.thicknessSlider) {
+          clampXForThickness();
+        }
         updateFn();
       }
     });
@@ -90,6 +125,9 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
         val = parseFloat(slider.value);
       }
       slider.value = val;
+      if (slider === els.thicknessSlider) {
+        clampXForThickness();
+      }
       input.value = slider.value;
       updateFn();
     };
