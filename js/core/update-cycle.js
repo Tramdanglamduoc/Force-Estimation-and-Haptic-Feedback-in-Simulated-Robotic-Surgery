@@ -1,5 +1,5 @@
 import { runBootstrapAndUpdateUI } from './bootstrap-ci.js';
-import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, drawSensorPlot, calculateRampT, calculateEffectiveVelocity } from '../plots.js';
+import { drawDepthPlot, drawTimePlot, drawHysteresisPlot, drawSensorPlot, calculateRampT } from '../plots.js';
 import { tissueConfig } from '../config/tissue-config.js';
 import { toolConfig } from '../config/tool-config.js';
 import { mmToM, calculateElasticForce, calculateViscousForce, calculateTotalForce, calculateRelaxationTime, calculateMaxwellF0, calculateMaxwellForce, calculateEffectiveStiffness, calculateConfinementFactor, decomposeForce } from '../physics.js';
@@ -237,17 +237,11 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     }
   }
 
-  // Unit conversions using effective velocity based on dynamic clamp boundaries
+  // Unit conversions
   const x_m = mmToM(x);
-  const v_effective = calculateEffectiveVelocity(x, v, rampMin, rampMax);
-  const v_effective_m = mmToM(v_effective);
+  const v_m = mmToM(v);
 
-  // Update velocity slider value display to show effective velocity if clamping occurred
-  if (Math.abs(v_effective - v) <= 0.01) {
-    if (els.vVal) els.vVal.textContent = v.toFixed(1);
-  } else {
-    if (els.vVal) els.vVal.innerHTML = `${v.toFixed(1)} &rarr; <span style="color:#B06A18; font-weight:700;">${v_effective.toFixed(1)} (adjusted)</span>`;
-  }
+  if (els.vVal) els.vVal.textContent = v.toFixed(1);
 
   // Decomposition card label changes
   const decompCard = els.elasticBar ? els.elasticBar.closest('.card') : null;
@@ -276,7 +270,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
   }
 
   // Decomposition calculation
-  const decomp = decomposeForce(modelType, kEffective, c, x_m, v_effective_m);
+  const decomp = decomposeForce(modelType, kEffective, c, x_m, v_m);
   const pElastic = decomp.pElastic;
   const pViscous = decomp.pViscous;
   let total = 0;
@@ -314,7 +308,6 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
             <strong>x<sub>spring</sub> + x<sub>dashpot</sub> = ${(x_spring + x_dashpot).toFixed(6)} m</strong> (Total: ${x_m.toFixed(6)} m)
           </div>
           <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">This calculation uses your current slider values exactly (not affected by Monte Carlo).</div>
-          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
         </div>
       `;
     } else {
@@ -323,12 +316,11 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
           <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 12px;">Viscoelastic Formula & Substitution:</div>
           <div style="margin-bottom: 4px;">General: <strong>F = k &middot; x<sub>m</sub> + c &middot; v<sub>m</sub></strong></div>
           <div style="font-family: monospace; background: #FBFCFD; border: 1px solid var(--border); padding: 8px; border-radius: 6px; color: var(--navy); font-size: 11px;">
-            F = (${kEffective.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_effective_m.toFixed(4)} m/s)<br>
+            F = (${kEffective.toFixed(1)} N/m &middot; ${x_m.toFixed(4)} m) + (${c.toFixed(2)} Ns/m &middot; ${v_m.toFixed(4)} m/s)<br>
             F = ${fElastic.toFixed(3)} N (Elastic) + ${fViscous.toFixed(3)} N (Viscous)<br>
             <strong>F = ${total.toFixed(3)} N</strong>
           </div>
           <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">This calculation uses your current slider values exactly (not affected by Monte Carlo).</div>
-          ${Math.abs(v_effective - v) > 0.01 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">Note: effective ẋ shown above already reflects the clamp adjustment.</div>` : ''}
         </div>
       `;
     }
@@ -362,7 +354,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
   updateTissueStructure(els, k, x, selectedTissue);
 
   // Compute global max peak force to set F_max dynamically
-  const rampT_FMax = calculateRampT(x, v_effective, rampMin, rampMax);
+  const rampT_FMax = calculateRampT(x, v, rampMin, rampMax);
   const Tc_FMax = 2 * rampT_FMax + holdDuration;
   const N_cycles_FMax = (isCyclicOn && cycleCount > 0) ? cycleCount : 1;
   const T_total_FMax = N_cycles_FMax * Tc_FMax;
@@ -387,7 +379,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     const kEff = calculateEffectiveStiffness(x_val, k, isHetero, D_inclusion, stiffness_ratio);
     if (modelType === "Maxwell") {
       const tInCycle = t % Tc_FMax;
-      return calculateMaxwellForce(tInCycle, kEff, c, x, v_effective, holdDuration, rampMin, rampMax);
+      return calculateMaxwellForce(tInCycle, kEff, c, x, v, holdDuration, rampMin, rampMax);
     } else {
       return kEff * mmToM(x_val) + c * mmToM(v_val);
     }
@@ -486,12 +478,12 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
   });
 
   // Draw plots
-  drawDepthPlot(k, x, mcOn, modelType, c, v_effective);
+  drawDepthPlot(k, x, mcOn, modelType, c, v);
   drawTimePlot(k, c, x, v, holdDuration, rampMin, rampMax, mcOn, modelType, isCyclicOn, cycleCount);
   drawHysteresisPlot(k, c, x, v, rampMin, rampMax, mcOn, modelType, holdDuration);
   
   if (els.plotSensor) {
-    drawSensorPlot(kEffective, c, x, v_effective, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els);
+    drawSensorPlot(kEffective, c, x, v, holdDuration, rampMin, rampMax, modelType, isCyclicOn, cycleCount, els);
   }
 
   updateSensitivityTab(els);
