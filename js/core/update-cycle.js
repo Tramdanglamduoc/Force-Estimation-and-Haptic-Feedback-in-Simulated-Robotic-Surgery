@@ -428,6 +428,13 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     els.sensorQuantSlider.max = q_max;
     if (els.sensorQuantInput) els.sensorQuantInput.max = q_max;
     
+    const quant_default = Math.min(q_max, sigma_clamped * 0.5);
+    const userHasModifiedQuant = els.sensorQuantSlider.dataset.userModified === "true";
+    if (!userHasModifiedQuant) {
+      els.sensorQuantSlider.value = quant_default.toFixed(5);
+      if (els.sensorQuantInput) els.sensorQuantInput.value = quant_default.toFixed(5);
+    }
+
     let current_q_val = parseFloat(els.sensorQuantSlider.value);
     if (current_q_val > q_max) {
       els.sensorQuantSlider.value = q_max;
@@ -436,7 +443,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     }
     
     if (els.sensorQuantVal) {
-      els.sensorQuantVal.textContent = current_q_val.toFixed(4);
+      els.sensorQuantVal.textContent = current_q_val.toFixed(5);
     }
   }
 
@@ -477,7 +484,9 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
       if (input && document.activeElement !== input) {
         if (s.id.includes("Latency") || s.id.includes("Rate") || s.id.includes("Dropout")) {
           input.value = Math.round(val);
-        } else if (s.id.includes("Quant") || s.id.includes("Noise")) {
+        } else if (s.id.includes("Quant")) {
+          input.value = val.toFixed(5);
+        } else if (s.id.includes("Noise")) {
           input.value = val.toFixed(4);
         } else {
           input.value = val.toFixed(3);
