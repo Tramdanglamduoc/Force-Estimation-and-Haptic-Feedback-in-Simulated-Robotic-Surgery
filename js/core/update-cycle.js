@@ -412,6 +412,15 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     }
   }
 
+  const sigma_default = peakF * 0.05;
+  const sigma_clamped = Math.max(0.0, Math.min(0.05, sigma_default));
+  const userHasModifiedNoise = els.sensorNoiseSlider && els.sensorNoiseSlider.dataset.userModified === "true";
+
+  if (!userHasModifiedNoise && els.sensorNoiseSlider) {
+    els.sensorNoiseSlider.value = sigma_clamped.toFixed(3);
+    if (els.sensorNoiseInput) els.sensorNoiseInput.value = sigma_clamped.toFixed(3);
+  }
+
   // Dynamic Quantization Constraint (runs on load and on update)
   if (els.sensorQuantSlider) {
     const current_F_max = parseFloat(els.sensorSatSlider.value) || 0.5;

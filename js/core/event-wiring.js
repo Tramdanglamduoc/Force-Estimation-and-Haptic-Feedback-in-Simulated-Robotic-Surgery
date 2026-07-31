@@ -68,6 +68,18 @@ export function initEventWiring(els, updateFn, handleTissueChangeFn, handleToolC
     });
   }
 
+  // Track if user manually modified sensorNoiseSlider
+  if (els.sensorNoiseSlider) {
+    els.sensorNoiseSlider.addEventListener("input", () => {
+      els.sensorNoiseSlider.dataset.userModified = "true";
+    });
+  }
+  if (els.sensorNoiseInput) {
+    els.sensorNoiseInput.addEventListener("input", () => {
+      if (els.sensorNoiseSlider) els.sensorNoiseSlider.dataset.userModified = "true";
+    });
+  }
+
   // 2. Attach standard input listeners to the sliders
   [
     els.kSlider, els.cSlider, els.xSlider, els.vSlider, els.holdSlider,

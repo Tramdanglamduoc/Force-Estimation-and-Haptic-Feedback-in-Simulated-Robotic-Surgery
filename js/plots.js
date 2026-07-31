@@ -623,10 +623,6 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
   const cachedKey = `${kEffective}_${c}_${xTarget}_${vTarget}_${holdDuration}_${rampMin}_${rampMax}_${modelType}_${isCyclicOn}_${cycleCount}_${rate}_${sigma}_${latency}_${bias}_${step_size}_${F_max}_${dropout_prob}`;
 
   if (!canvas.datasetCache || canvas.datasetCache.key !== cachedKey) {
-    // 1. Log dropout slider details for Bug 2 diagnosis
-    const dropout_raw = parseFloat(els.sensorDropoutSlider.value) || 0;
-    console.log("drawSensorPlot: received dropout_raw =", dropout_raw, "dropout_prob =", dropout_prob);
-
     // Initialize seeded PRNG
     const prng = mulberry32(42);
 
@@ -720,8 +716,6 @@ export function drawSensorPlot(kEffective, c, xTarget, vTarget, holdDuration, ra
       
       samples.push({ t: t_sample, f: f_sensor_val });
     }
-
-    console.log("drawSensorPlot: loop finished. total samples =", total_samples, "held (dropped) samples =", held_count);
 
     // ZOH interpolation helper
     function getFSensor(t) {
