@@ -412,13 +412,13 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     }
   }
 
-  const sigma_default = peakF * 0.05;
+  const sigma_default = Math.max(0.0003, peakF * 0.08);
   const sigma_clamped = Math.max(0.0, Math.min(0.05, sigma_default));
   const userHasModifiedNoise = els.sensorNoiseSlider && els.sensorNoiseSlider.dataset.userModified === "true";
 
   if (!userHasModifiedNoise && els.sensorNoiseSlider) {
-    els.sensorNoiseSlider.value = sigma_clamped.toFixed(3);
-    if (els.sensorNoiseInput) els.sensorNoiseInput.value = sigma_clamped.toFixed(3);
+    els.sensorNoiseSlider.value = sigma_clamped.toFixed(4);
+    if (els.sensorNoiseInput) els.sensorNoiseInput.value = sigma_clamped.toFixed(4);
   }
 
   // Dynamic Quantization Constraint (runs on load and on update)
@@ -442,7 +442,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
 
   // Sync sensor slider text readouts and fills
   if (els.sensorNoiseSlider && els.sensorNoiseVal) {
-    els.sensorNoiseVal.textContent = parseFloat(els.sensorNoiseSlider.value).toFixed(3);
+    els.sensorNoiseVal.textContent = parseFloat(els.sensorNoiseSlider.value).toFixed(4);
   }
   if (els.sensorLatencySlider && els.sensorLatencyVal) {
     els.sensorLatencyVal.textContent = parseInt(els.sensorLatencySlider.value);
@@ -477,7 +477,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
       if (input && document.activeElement !== input) {
         if (s.id.includes("Latency") || s.id.includes("Rate") || s.id.includes("Dropout")) {
           input.value = Math.round(val);
-        } else if (s.id.includes("Quant")) {
+        } else if (s.id.includes("Quant") || s.id.includes("Noise")) {
           input.value = val.toFixed(4);
         } else {
           input.value = val.toFixed(3);

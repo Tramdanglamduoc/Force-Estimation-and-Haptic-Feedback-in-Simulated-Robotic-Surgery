@@ -12,10 +12,10 @@ export function sensorTabHTML() {
         <div class="slider-row">
           <div class="label-row">
             <span>Gaussian noise &sigma; (N)</span>
-            <span class="val" id="sensorNoiseVal">0.010</span>
+            <span class="val" id="sensorNoiseVal">0.0100</span>
           </div>
           <div class="input-slider-container">
-            <input type="range" id="sensorNoiseSlider" min="0" max="0.05" step="0.001" value="0.010">
+            <input type="range" id="sensorNoiseSlider" min="0" max="0.05" step="0.0001" value="0.0100">
             <input type="number" id="sensorNoiseInput" class="small-num-input">
           </div>
         </div>
