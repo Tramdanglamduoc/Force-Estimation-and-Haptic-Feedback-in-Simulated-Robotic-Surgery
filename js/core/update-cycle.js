@@ -412,7 +412,7 @@ c_lumped = ((${cMaterial_kPa_s.toFixed(1)} kPa·s × 1000) × ${fmt(A_m2)} / ${f
     }
   }
 
-  const sigma_default = Math.max(0.0003, peakF * 0.08);
+  const sigma_default = Math.max(0.001, peakF * 0.20);
   const sigma_clamped = Math.max(0.0, Math.min(0.05, sigma_default));
   const userHasModifiedNoise = els.sensorNoiseSlider && els.sensorNoiseSlider.dataset.userModified === "true";
 
