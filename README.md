@@ -1,9 +1,9 @@
 # Force-Estimation-and-Haptic-Feedback-in-Simulated-Robotic-Surgery
-# TissueSense
+
 
 **Physics-based force estimation and haptic feedback for simulated robotic surgery**
 
-🔗 **[Live demo](YOUR_NETLIFY_URL)** · Summer research, Özyeğin University (2026), Biomedical Physics track, supervised by Prof. Burçin Ünlü
+🔗 **[Live demo](https://force-estimation-and-haptic-feedback.netlify.app)** · Summer research, Özyeğin University (2026), Biomedical Physics track, supervised by Prof. Burçin Ünlü
 
 <p align="center">
   <img src="assets/screenshot.png" width="800" alt="TissueSense interface">
